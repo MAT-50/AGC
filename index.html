@@ -2901,75 +2901,16 @@ col-12 {
                 <strong>AGC Analytics</strong> &copy; <?= date('Y') ?> - Ambulatório de Aconselhamento Genético do Câncer (FMRP-USP)
             </div>
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <button class="btn-action" id="btn-sync" style="font-size: 12px; padding: 7px 14px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition-smooth);">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="23 4 23 10 17 10"></polyline>
-                        <polyline points="1 20 1 14 7 14"></polyline>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                    </svg>
-                    Versão Pública (GitHub Pages)
-                </button>
-                <button class="btn-action" id="btn-compilar-ghpages" style="font-size: 12px; padding: 7px 14px; background: rgba(2, 132, 199, 0.08); color: var(--accent); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: var(--border-radius-md); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition-smooth);" title="Recompilar a versão estática pública (github_pages/index.html)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    Compilar GitHub Pages
-                </button>
-                <button class="btn-action" id="btn-info-ghpages" style="font-size: 12px; padding: 7px 12px; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: var(--transition-smooth);" title="Passo a passo de atualização do GitHub Pages">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                    </svg>
-                    Instruções GitHub
-                </button>
+                
+                
+                
             </div>
         </footer>
 
     </div>
 
     <!-- MODAL DE INSTRUÇÕES E COMPILAÇÃO GITHUB PAGES -->
-    <div id="modal-ghpages" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:10000; align-items:center; justify-content:center; padding:16px;">
-        <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; max-width:620px; width:100%; padding:24px; box-shadow:0 10px 25px rgba(0,0,0,0.2); position:relative; font-family:var(--font-primary);">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:16px;">
-                <h3 style="margin:0; font-size:16px; color:var(--text-main); display:flex; align-items:center; gap:8px;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent);">
-                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-                    </svg>
-                    Hospedagem GitHub Pages (mat-50.github.io/AGC)
-                </h3>
-                <button type="button" id="btn-fechar-modal-ghpages" style="background:none; border:none; color:var(--text-muted); font-size:20px; font-weight:bold; cursor:pointer;">&times;</button>
-            </div>
-
-            <div id="status-compilacao-ghpages" style="display:none; margin-bottom:16px; padding:12px; border-radius:8px; font-size:13px; font-weight:600;"></div>
-
-            <div style="font-size:13px; line-height:1.6; color:var(--text-main);">
-                <p style="margin-top:0;">O site público é hospedado em <strong>https://mat-50.github.io/AGC/</strong>. Siga os 2 passos abaixo:</p>
-                
-                <div id="box-passo1-ghpages" style="background:rgba(16, 185, 129, 0.08); border-left:4px solid #10b981; padding:10px 14px; border-radius:4px; margin-bottom:14px;">
-                    <strong style="color:#059669;">✅ Passo 1 (Compilação Local Concluída):</strong><br>
-                    O arquivo estático <code>github_pages/AGC/index.html</code> foi gerado com sucesso e com proteção LGPD.
-                </div>
-
-                <div style="margin-bottom:10px; font-weight:600; color:var(--text-main);">
-                    👉 Passo 2: Enviar a atualização para o GitHub online:
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
-                    <div style="background:var(--bg-app); border:2px solid var(--accent); padding:12px; border-radius:8px;">
-                        <strong style="color:var(--accent); font-size:12px; display:block; margin-bottom:4px;">Método Recomendado: GitHub Desktop</strong>
-                        <p style="margin:0; font-size:11px; color:var(--text-main); line-height:1.4;">1. Abra o <strong>GitHub Desktop</strong>.<br>2. Veja a alteração em <code>github_pages/AGC/index.html</code>.<br>3. Digite o commit e clique em <strong>Push origin</strong>!</p>
-                    </div>
-                    <div style="background:var(--bg-app); border:1px solid var(--border-color); padding:12px; border-radius:8px;">
-                        <strong style="color:var(--text-muted); font-size:12px; display:block; margin-bottom:4px;">Método Alternativo: Terminal (Git CLI)</strong>
-                        <div style="font-family:monospace; font-size:11px; color:var(--text-main); margin-top:4px; user-select:all; line-height:1.4;">
-                            git add .<br>
-                            git commit -m "Atualizando REDCap"<br>
-                            git push origin main
-                        </div>
-                    </div>
+    
                 </div>
             </div>
 
