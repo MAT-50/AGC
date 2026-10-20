@@ -372,6 +372,7 @@ const FormularioClinico = {
                 const qtd = parseInt(selNPrimarios.value, 10);
                 this.atualizarQuantidadePrimarios(isNaN(qtd) ? 0 : qtd);
                 this.sincronizarProbandoTabela();
+                this.executarCdss();
             });
         }
 
@@ -662,9 +663,11 @@ const FormularioClinico = {
         if (!window.CdssEngine) return;
 
         // Extrai dados clínicos do probando a partir dos campos do formulário
+        const sexVal = document.querySelector('input[name="sex"]:checked')?.value || '1';
         const dadosClinicos = {
             idade: parseInt(document.getElementById('field-idade')?.value, 10) || 45,
-            sexo: document.querySelector('input[name="sex"]:checked')?.value === '1' ? 'F' : 'M',
+            sex: sexVal,
+            sexo: sexVal === '2' ? 'M' : 'F',
             ashkenazi: document.getElementById('field-ashkenazi')?.checked || false,
             tumores: []
         };

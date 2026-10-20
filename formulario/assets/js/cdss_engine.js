@@ -392,16 +392,17 @@ const CdssEngine = {
 
         // Extrai fatos do probando
         const idadeAtual = parseInt(dadosPaciente.idade, 10) || 0;
-        const sexo = (dadosPaciente.sexo || "1") === "2" ? "M" : "F";
-        const ashkenazi = dadosPaciente.ashkenazi === "1" || dadosPaciente.ashkenazi === 1;
+        const valSexo = String(dadosPaciente.sexo || dadosPaciente.sex || "1").toUpperCase().trim();
+        const sexo = (valSexo === "2" || valSexo === "M" || valSexo === "MASCULINO") ? "M" : "F";
+        const ashkenazi = dadosPaciente.ashkenazi === "1" || dadosPaciente.ashkenazi === 1 || dadosPaciente.ashkenazi === true;
 
         const tumoresProbando = Array.isArray(dadosPaciente.tumores) ? dadosPaciente.tumores : [];
-        const temMamaProbando = tumoresProbando.some(t => this.norm(t.tipo).includes("mama"));
-        const temOvarioProbando = tumoresProbando.some(t => this.norm(t.tipo).includes("ovario") || this.norm(t.tipo).includes("tuba") || this.norm(t.tipo).includes("perit"));
-        const temPancreasProbando = tumoresProbando.some(t => this.norm(t.tipo).includes("pancreas"));
-        const temProstataProbando = tumoresProbando.some(t => this.norm(t.tipo).includes("prostata"));
-        const temColonProbando = tumoresProbando.some(t => this.norm(t.tipo).includes("colon") || this.norm(t.tipo).includes("reto"));
-        const temEndometrioProbando = tumoresProbando.some(t => this.norm(t.tipo).includes("endometrio"));
+        const temMamaProbando = tumoresProbando.some(t => String(t.codigo) === "16" || this.norm(t.tipo).includes("mama"));
+        const temOvarioProbando = tumoresProbando.some(t => ["23", "45"].includes(String(t.codigo)) || this.norm(t.tipo).includes("ovario") || this.norm(t.tipo).includes("tuba") || this.norm(t.tipo).includes("perit"));
+        const temPancreasProbando = tumoresProbando.some(t => String(t.codigo) === "24" || this.norm(t.tipo).includes("pancreas"));
+        const temProstataProbando = tumoresProbando.some(t => String(t.codigo) === "28" || this.norm(t.tipo).includes("prostata"));
+        const temColonProbando = tumoresProbando.some(t => ["7", "30"].includes(String(t.codigo)) || this.norm(t.tipo).includes("colon") || this.norm(t.tipo).includes("reto"));
+        const temEndometrioProbando = tumoresProbando.some(t => String(t.codigo) === "9" || this.norm(t.tipo).includes("endometrio"));
 
         // Menor idade de diagnóstico de mama no probando
         let menorIdadeMamaProbando = 999;
@@ -414,7 +415,7 @@ const CdssEngine = {
             const id = parseInt(t.idadeDx, 10) || 999;
             const det = this.norm(t.detalhes || "");
 
-            if (n.includes("mama")) {
+            if (String(t.codigo) === "16" || n.includes("mama")) {
                 if (id < menorIdadeMamaProbando) menorIdadeMamaProbando = id;
                 temMultiplosMama++;
                 if (det.includes("triplo") || det.includes("tn") || (det.includes("rh-") && det.includes("her2-"))) {
