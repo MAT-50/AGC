@@ -227,9 +227,21 @@ const CdssEngine = {
             endometrio_d3: false,
             menor_idade_endometrio: 999,
 
+            osteo_d1: false,
+            osteo_d2: false,
+            menor_idade_osteo: 999,
+
             sarcoma_d1: false,
             sarcoma_d2: false,
             menor_idade_sarcoma: 999,
+
+            snc_d1: false,
+            snc_d2: false,
+            menor_idade_snc: 999,
+
+            adrenal_d1: false,
+            adrenal_d2: false,
+            menor_idade_adrenal: 999,
 
             adrenal_qualquer: false,
             plexo_coroide_qualquer: false,
@@ -266,15 +278,16 @@ const CdssEngine = {
 
             const lado = this.obterLinhagem(p);
             const sexo = (p.sexo || "I").toUpperCase();
-            const diags = Array.isArray(p.diagnosticos) ? p.diagnosticos : [];
+            const diags = Array.isArray(p.diags) ? p.diags : (Array.isArray(p.diagnosticos) ? p.diagnosticos : []);
 
             diags.forEach(d => {
                 const tumor = (d.tumor || "").trim();
-                const idadeDx = parseInt(d.idadeDx, 10) || 999;
+                const idadeDx = parseInt(d.idadeDx !== undefined ? d.idadeDx : d.idade, 10) || 999;
                 const normTumor = this.norm(tumor);
+                const codTumor = String(d.codigo || "").trim();
 
-                // --- MAMA ---
-                if (normTumor.includes("mama")) {
+                // --- MAMA (cod 5 em parentes) ---
+                if (normTumor.includes("mama") || codTumor === "5") {
                     if (grau <= 1) aggr.mama_d1 = true;
                     if (grau <= 2) {
                         aggr.mama_d2 = true;
@@ -290,22 +303,22 @@ const CdssEngine = {
                     }
                 }
 
-                // --- OVÁRIO / TUBA / PERITÔNEO ---
-                if (normTumor.includes("ovario") || normTumor.includes("perit") || normTumor.includes("tuba")) {
+                // --- OVÁRIO / TUBA / PERITÔNEO (cod 6 se F, cod 13 em parentes) ---
+                if (normTumor.includes("ovario") || normTumor.includes("perit") || normTumor.includes("tuba") || (sexo === "F" && (codTumor === "6" || codTumor === "13"))) {
                     if (grau <= 1) aggr.ovario_d1 = true;
                     if (grau <= 2) aggr.ovario_d2 = true;
                     if (grau <= 3) aggr.ovario_d3 = true;
                 }
 
-                // --- PÂNCREAS ---
-                if (normTumor.includes("pancreas")) {
+                // --- PÂNCREAS (cod 8 em parentes) ---
+                if (normTumor.includes("pancreas") || codTumor === "8") {
                     if (grau <= 1) aggr.pancreas_d1 = true;
                     if (grau <= 2) aggr.pancreas_d2 = true;
                     if (grau <= 3) aggr.pancreas_d3 = true;
                 }
 
-                // --- PRÓSTATA ---
-                if (normTumor.includes("prostata")) {
+                // --- PRÓSTATA (cod 6 se M em parentes) ---
+                if (normTumor.includes("prostata") || (sexo === "M" && codTumor === "6")) {
                     if (grau <= 1) aggr.prostata_d1 = true;
                     if (grau <= 2) aggr.prostata_d2 = true;
                     if (grau <= 3) {
@@ -315,8 +328,8 @@ const CdssEngine = {
                     }
                 }
 
-                // --- CÓLON / RETO (Lynch) ---
-                if (normTumor.includes("colon") || normTumor.includes("reto")) {
+                // --- CÓLON / RETO (cod 7 em parentes) ---
+                if (normTumor.includes("colon") || normTumor.includes("reto") || codTumor === "7") {
                     if (grau <= 1) aggr.colon_d1 = true;
                     if (grau <= 2) {
                         aggr.colon_d2 = true;
@@ -325,8 +338,8 @@ const CdssEngine = {
                     if (grau <= 3) aggr.colon_d3 = true;
                 }
 
-                // --- ENDOMÉTRIO ---
-                if (normTumor.includes("endometrio")) {
+                // --- ENDOMÉTRIO (cod 0 se F em parentes) ---
+                if (normTumor.includes("endometrio") || normTumor.includes("utero") || (sexo === "F" && codTumor === "0")) {
                     if (grau <= 1) aggr.endometrio_d1 = true;
                     if (grau <= 2) {
                         aggr.endometrio_d2 = true;
@@ -335,8 +348,17 @@ const CdssEngine = {
                     if (grau <= 3) aggr.endometrio_d3 = true;
                 }
 
-                // --- SARCOMA / OSTEOSSARCOMA (LFS) ---
-                if (normTumor.includes("sarcoma") || normTumor.includes("osteossarcoma")) {
+                // --- OSTEOSSARCOMA (cod 14 em parentes) ---
+                if (normTumor.includes("osteossarcoma") || codTumor === "14") {
+                    if (grau <= 1) aggr.osteo_d1 = true;
+                    if (grau <= 2) {
+                        aggr.osteo_d2 = true;
+                        if (idadeDx < aggr.menor_idade_osteo) aggr.menor_idade_osteo = idadeDx;
+                    }
+                }
+
+                // --- SARCOMA DE PARTES MOLES (cod 15 em parentes) ---
+                if ((normTumor.includes("sarcoma") && !normTumor.includes("osteossarcoma")) || codTumor === "15") {
                     if (grau <= 1) aggr.sarcoma_d1 = true;
                     if (grau <= 2) {
                         aggr.sarcoma_d2 = true;
@@ -344,28 +366,52 @@ const CdssEngine = {
                     }
                 }
 
-                // --- ADRENAL / PLEXO COROIDE ---
-                if (normTumor.includes("adrenocortical") || normTumor.includes("adrenal")) {
-                    aggr.adrenal_qualquer = true;
-                }
-                if (normTumor.includes("plexo") || normTumor.includes("coroide")) {
-                    aggr.plexo_coroide_qualquer = true;
+                // --- TUMOR DE SNC / CÉREBRO (cod 16 em parentes) ---
+                if (normTumor.includes("snc") || normTumor.includes("cerebro") || normTumor.includes("sistema nervoso") || normTumor.includes("plexo") || normTumor.includes("coroide") || codTumor === "16") {
+                    if (grau <= 1) aggr.snc_d1 = true;
+                    if (grau <= 2) {
+                        aggr.snc_d2 = true;
+                        if (idadeDx < aggr.menor_idade_snc) aggr.menor_idade_snc = idadeDx;
+                    }
+                    if (normTumor.includes("plexo") || normTumor.includes("coroide")) aggr.plexo_coroide_qualquer = true;
                 }
 
-                // --- GÁSTRICO DIFUSO / ESTÔMAGO ---
-                if (normTumor.includes("estomago") || normTumor.includes("gastrico") || String(tumor.codigo) === "18") {
+                // --- CARCINOMA ADRENOCORTICAL / ADRENAL (cod 17 em parentes) ---
+                if (normTumor.includes("adrenocortical") || normTumor.includes("adrenal") || codTumor === "17") {
+                    aggr.adrenal_qualquer = true;
+                    if (grau <= 1) aggr.adrenal_d1 = true;
+                    if (grau <= 2) {
+                        aggr.adrenal_d2 = true;
+                        if (idadeDx < aggr.menor_idade_adrenal) aggr.menor_idade_adrenal = idadeDx;
+                    }
+                }
+
+                // --- GÁSTRICO DIFUSO / ESTÔMAGO (cod 18 em parentes) ---
+                if (normTumor.includes("estomago") || normTumor.includes("gastrico") || codTumor === "18") {
                     if (grau <= 2) {
                         aggr.gastrico_difuso_d2 = true;
                         if (idadeDx < aggr.menor_idade_gastrico_d2) aggr.menor_idade_gastrico_d2 = idadeDx;
-                        if (linhagem === 'M') aggr.gastrico_d2_mat++;
-                        else if (linhagem === 'P') aggr.gastrico_d2_pat++;
+                        if (lado === 'M') aggr.gastrico_d2_mat++;
+                        else if (lado === 'P') aggr.gastrico_d2_pat++;
                         else aggr.gastrico_d2_com++;
                     }
                     if (grau <= 3) aggr.gastrico_difuso_d3 = true;
                 }
 
                 // --- ESPECTRO LYNCH AGREGADO ---
-                if (this.ESPECTROS.lynch.some(e => this.norm(e) === normTumor)) {
+                const lynchCodigos = ["0", "7", "8", "13", "16", "18", "22", "23", "24", "25", "26"];
+                const isLynchTumor = lynchCodigos.includes(codTumor) ||
+                    (sexo === 'F' && codTumor === "6") ||
+                    normTumor.includes("colon") || normTumor.includes("reto") ||
+                    normTumor.includes("endometrio") || normTumor.includes("estomago") || normTumor.includes("gastrico") ||
+                    normTumor.includes("ovario") || normTumor.includes("perit") || normTumor.includes("tuba") ||
+                    normTumor.includes("pancreas") || normTumor.includes("urotelial") || normTumor.includes("ureter") ||
+                    normTumor.includes("vias biliares") || normTumor.includes("delgado") ||
+                    normTumor.includes("sebaceo") || normTumor.includes("ceratoacantoma") || normTumor.includes("queratoacantoma") ||
+                    normTumor.includes("snc") || normTumor.includes("sistema nervoso") ||
+                    this.ESPECTROS.lynch.some(e => normTumor.includes(this.norm(e)) || this.norm(e).includes(normTumor));
+
+                if (isLynchTumor) {
                     if (grau <= 2) {
                         aggr.lynch_parentes_d1_d2.push({ parente: p, tumor: tumor, idadeDx: idadeDx, grau: grau });
                         if (idadeDx < 50) aggr.lynch_menor_50_d1_d2++;
@@ -373,7 +419,15 @@ const CdssEngine = {
                 }
 
                 // --- ESPECTRO LFS AGREGADO ---
-                if (this.ESPECTROS.lfs.some(e => this.norm(e) === normTumor)) {
+                const isLfsTumor = normTumor.includes("sarcoma") || normTumor.includes("osteossarcoma") ||
+                    normTumor.includes("adrenocortical") || normTumor.includes("adrenal") ||
+                    normTumor.includes("plexo") || normTumor.includes("coroide") ||
+                    normTumor.includes("snc") || normTumor.includes("sistema nervoso") ||
+                    normTumor.includes("leucemia") || normTumor.includes("linfoma") ||
+                    normTumor.includes("mama") ||
+                    this.ESPECTROS.lfs.some(e => normTumor.includes(this.norm(e)) || this.norm(e).includes(normTumor));
+
+                if (isLfsTumor) {
                     if (grau <= 2 && idadeDx < 56) {
                         aggr.lfs_parentes_d1_d2_menor_56++;
                     }
@@ -418,7 +472,7 @@ const CdssEngine = {
             if (String(t.codigo) === "16" || n.includes("mama")) {
                 if (id < menorIdadeMamaProbando) menorIdadeMamaProbando = id;
                 temMultiplosMama++;
-                if (det.includes("triplo") || det.includes("tn") || (det.includes("rh-") && det.includes("her2-"))) {
+                if (t.triploNegativo || dadosPaciente.temMamaTriploNegativo || det.includes("triplo") || det.includes("tn") || (det.includes("rh-") && det.includes("her2-"))) {
                     temMamaTriploNegativo = true;
                 }
                 if (det.includes("lobular")) {
@@ -658,8 +712,8 @@ const CdssEngine = {
         const ovarioTipo = String(dadosPaciente.ovario_tipo || document.querySelector('[name="ovario_tipo"]')?.value || '').trim();
         const parenteOvarioEpit = String(dadosPaciente.parente_ovario_epit || document.querySelector('[name="parente_ovario_epit"]')?.value || '').trim();
 
-        // ovario_crit_1: Pessoal CA Ovário/Tuba/Peritôneo Epitelial
-        regrasOvario.ovario_crit_1 = (ovarioGrupo === '1' || periTubaEpitelial === '1' || temOvarioProbando);
+        // ovario_crit_1: Pessoal CA Ovário/Tuba/Peritôneo Epitelial (se ovario_grupo === 2, não epitelial)
+        regrasOvario.ovario_crit_1 = (ovarioGrupo === '1' || periTubaEpitelial === '1' || (temOvarioProbando && ovarioGrupo !== '2'));
         if (regrasOvario.ovario_crit_1) {
             resultado.criteriosAtendidos.push({
                 codigo: "ovario_crit_1",
@@ -683,7 +737,7 @@ const CdssEngine = {
         // ovario_crit_3: Familiar de 1º ou 2º grau com CA Epitelial de Ovário/Tuba/Peritôneo
         const temHfOvarD2Epit = (parenteOvarioEpit === '1' && (dadosPaciente.hist_familiar_ovar_d2 === '1' || histFam.ovario_d2));
         const temHfPeriTubaD2 = (dadosPaciente.hist_familiar_peri_tuba_d2 === '1' || histFam.peri_tuba_d2);
-        regrasOvario.ovario_crit_3 = (temHfOvarD2Epit || temHfPeriTubaD2 || histFam.ovario_d2);
+        regrasOvario.ovario_crit_3 = (temHfOvarD2Epit || temHfPeriTubaD2);
         if (regrasOvario.ovario_crit_3) {
             resultado.criteriosAtendidos.push({
                 codigo: "ovario_crit_3",
@@ -802,7 +856,7 @@ const CdssEngine = {
         // 4. CRITÉRIOS PARA CÂNCER DE PRÓSTATA (NCCN GUIDELINES)
         // =========================================================================
         const regrasProstata = {};
-        const genesProstata = [2, 8, 9, 15, 21, 35, 55]; // ATM, BRCA1/2, CHEK2, HOXB13, PALB2, TP53
+        const genesProstata = [2, 9, 15, 21, 28]; // ATM, BRCA2, CHEK2, HOXB13, MSH2 (conforme NCCN/REDCap)
         const varFamProstata = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
         const prostMetas = (dadosPaciente.prostata_metastat === '1' || document.querySelector('[name="prostata_metastat"]')?.value === '1');
         const prostLinfo = (dadosPaciente.prostata_linfon === '1' || document.querySelector('[name="prostata_linfon"]')?.value === '1');
@@ -919,7 +973,7 @@ const CdssEngine = {
         }
 
         // prostata_crit_somatico: Variante somática tumoral relevante em gene de próstata
-        const genesProstataSomatico = [2, 8, 9, 15, 21, 28, 35, 55];
+        const genesProstataSomatico = [2, 8, 9, 15, 21, 28];
         const isProstataSomatic = genesProstataSomatico.includes(varSomatico);
         regrasProstata.prostata_crit_somatico = isProstataSomatic || (temSomaticoRelevante && (varSomatico === 0 || isProstataSomatic));
         if (regrasProstata.prostata_crit_somatico) {
@@ -951,9 +1005,25 @@ const CdssEngine = {
             });
         }
 
+        // Helper universal para detectar neoplasias do espectro de Lynch no probando
+        const isTumorLynchProbando = (t) => {
+            const n = this.norm(t.tipo || "");
+            const cod = String(t.codigo || t.cod || "");
+            if (cod === "110" || n.includes("hemangioblastoma")) return false;
+            if (cod === "33" || n.includes("snc") || n.includes("sistema nervoso")) {
+                const sncLoc = String(dadosPaciente.tumor_snc_local || "");
+                return sncLoc === "1" || n.includes("glioblastoma") || n.includes("astrocitoma");
+            }
+            return ["7", "30", "9", "11", "23", "24", "25", "3", "38", "40", "102", "120", "2", "20"].includes(cod) ||
+                n.includes("colon") || n.includes("reto") || n.includes("endometrio") ||
+                n.includes("estomago") || n.includes("gastrico") || (n.includes("ovario") && !n.includes("teratoma")) ||
+                n.includes("pancreas") || n.includes("urotelial") || n.includes("delgado") ||
+                n.includes("vias biliares") || n.includes("sebaceo") || n.includes("ceratoacantoma");
+        };
+
         // lynch_crit_2: CA do espectro no paciente < 50 anos
         const menorIdadeLynchProbando = tumoresProbando
-            .filter(t => this.ESPECTROS.lynch.some(e => this.norm(e) === this.norm(t.tipo)))
+            .filter(isTumorLynchProbando)
             .reduce((min, t) => Math.min(min, parseInt(t.idadeDx, 10) || 999), 999);
 
         regrasLynch.lynch_crit_2 = (menorIdadeLynchProbando < 50);
@@ -967,7 +1037,7 @@ const CdssEngine = {
         }
 
         // lynch_crit_3: Múltiplas neoplasias do espectro sincrônicas ou metacrônicas no paciente
-        const nLynchProbando = tumoresProbando.filter(t => this.ESPECTROS.lynch.some(e => this.norm(e) === this.norm(t.tipo))).length;
+        const nLynchProbando = tumoresProbando.filter(isTumorLynchProbando).length;
         regrasLynch.lynch_crit_3 = nLynchProbando >= 2;
         if (regrasLynch.lynch_crit_3) {
             resultado.criteriosAtendidos.push({
@@ -990,9 +1060,9 @@ const CdssEngine = {
         }
 
         // lynch_crit_5: Tumor do espectro + >= 2 parentes com Lynch do mesmo lado da família
-        const contMatLynch = (histFam.lynch_parentes_d1_d2 || []).filter(p => p.parente && (p.parente.codA?.startsWith('M') || p.parente.grau === 1)).length;
-        const contPatLynch = (histFam.lynch_parentes_d1_d2 || []).filter(p => p.parente && (p.parente.codA?.startsWith('P') || p.parente.grau === 1)).length;
-        regrasLynch.lynch_crit_5 = ((nLynchProbando >= 1 && contPatLynch >= 2) || contMatLynch >= 2);
+        const contMatLynch = (histFam.lynch_parentes_d1_d2 || []).filter(p => p.parente && (this.obterLinhagem(p.parente) === 'M' || this.obterLinhagem(p.parente) === 'A')).length;
+        const contPatLynch = (histFam.lynch_parentes_d1_d2 || []).filter(p => p.parente && (this.obterLinhagem(p.parente) === 'P' || this.obterLinhagem(p.parente) === 'A')).length;
+        regrasLynch.lynch_crit_5 = (nLynchProbando >= 1) && (contPatLynch >= 2 || contMatLynch >= 2);
         if (regrasLynch.lynch_crit_5) {
             resultado.criteriosAtendidos.push({
                 codigo: "lynch_crit_5",
@@ -1123,7 +1193,7 @@ const CdssEngine = {
         }
 
         // slf_crit_chompret_10: Carcinoma Adrenocortical (ACC) em qualquer idade
-        const temACC = tumoresProbando.some(t => this.norm(t.tipo).includes("adrenocortical") || parseInt(t.tipoPrimario || t.cod, 10) === 17) ||
+        const temACC = tumoresProbando.some(t => this.norm(t.tipo).includes("adrenocortical") || ((String(t.codigo || t.cod) === '1' || this.norm(t.tipo).includes("adrenal")) && parseInt(dadosPaciente.adrenal_tipo, 10) === 1)) ||
                        (parseInt(dadosPaciente.adrenal_tipo || document.querySelector('[name="adrenal_tipo"]')?.value, 10) === 1);
         regrasLFS.slf_crit_chompret_10 = temACC;
         if (temACC) {
@@ -1162,10 +1232,15 @@ const CdssEngine = {
 
         // slf_crit_chompret_7: Mama < 46 anos + parente de 1º/2º grau com tumor do espectro < 56 anos (exceto mama)
         const mamaMenor46 = temMamaProbando && menorIdadeMamaProbando < 46;
-        const parenteLfsNaoMama = (histFam.osteo_d2 && histFam.menor_idade_osteo < 56) ||
-                                  (histFam.sarcoma_d2 && histFam.menor_idade_sarcoma < 56) ||
-                                  (histFam.snc_d2 && histFam.menor_idade_snc < 56) ||
-                                  (histFam.adrenal_d2 && histFam.menor_idade_adrenal < 56);
+        const famOsteoMenor56 = (histFam.osteo_d2 && histFam.menor_idade_osteo < 56) ||
+                                (dadosPaciente.hist_familiar_osteo_d2 === '1' && parseFloat(dadosPaciente.hist_familiar_osteo_idade || 999) < 56);
+        const famSarcoMenor56 = (histFam.sarcoma_d2 && histFam.menor_idade_sarcoma < 56) ||
+                                (dadosPaciente.hist_familiar_sarco_d2 === '1' && parseFloat(dadosPaciente.hist_familiar_sarco_idade || 999) < 56);
+        const famSncMenor56 = (histFam.snc_d2 && histFam.menor_idade_snc < 56) ||
+                              (dadosPaciente.hist_familiar_snc_d2 === '1' && parseFloat(dadosPaciente.hist_familiar_snc_idade || 999) < 56);
+        const famAdrenoMenor56 = (histFam.adrenal_d2 && histFam.menor_idade_adrenal < 56) ||
+                                 (dadosPaciente.hist_familiar_adreno_d2 === '1' && parseFloat(dadosPaciente.hist_familiar_adreno_idade || 999) < 56);
+        const parenteLfsNaoMama = (famOsteoMenor56 || famSarcoMenor56 || famSncMenor56 || famAdrenoMenor56);
         regrasLFS.slf_crit_chompret_7 = (mamaMenor46 && parenteLfsNaoMama);
         if (regrasLFS.slf_crit_chompret_7) {
             resultado.criteriosAtendidos.push({
@@ -1176,10 +1251,39 @@ const CdssEngine = {
             });
         }
 
-        // slf_crit_4: Variante somática TP53 (teste_somatico(3) ou variante_somatico = 55) + câncer < 30 anos
-        const somaticoTp53 = document.querySelector('input[name="teste_somatico___3"]')?.checked || (dadosPaciente['teste_somatico___3'] === '1') || (dadosPaciente['teste_somatico(3)'] === '1') || (varSomatico === 55);
+        // slf_crit_chompret_9: Múltiplos tumores (exceto múltiplos de mama), dois do espectro LFS com primeiro câncer < 46 anos
+        const idadePrimeiroCancerGeral = tumoresProbando.reduce((min, t) => Math.min(min, parseInt(t.idadeDx, 10) || 999), 999);
+        let nLfsNaoMama = 0;
+        let nLfsMama = 0;
+        tumoresProbando.forEach(t => {
+            const cod = String(t.codigo || t.cod || "");
+            const n = this.norm(t.tipo || "");
+            if (cod === '16' || n.includes('mama')) {
+                nLfsMama++;
+            } else if (['42', '44', '33', '1'].includes(cod) ||
+                       (n.includes('sarcoma') && !n.includes('osteossarcoma')) ||
+                       n.includes('osteossarcoma') ||
+                       (n.includes('snc') && !n.includes('hemangioblastoma')) ||
+                       n.includes('adrenocortical')) {
+                nLfsNaoMama++;
+            }
+        });
+        const tem2DoEspectroNaoMamaExclusivo = (nLfsNaoMama >= 2) || (nLfsMama >= 1 && nLfsNaoMama >= 1) ||
+                                               (dadosPaciente.sarcoma_multiplo === '1' || dadosPaciente.snc_multiplo === '1');
+        regrasLFS.slf_crit_chompret_9 = (idadePrimeiroCancerGeral < 46 && tem2DoEspectroNaoMamaExclusivo);
+        if (regrasLFS.slf_crit_chompret_9) {
+            resultado.criteriosAtendidos.push({
+                codigo: "slf_crit_chompret_9",
+                sindrome: "Li-Fraumeni (Chompret)",
+                descricao: "Múltiplos tumores do espectro de LFS (exceto múltiplos de mama) com primeiro câncer < 46 anos",
+                justificativa: `Probando com múltiplos tumores do espectro de Li-Fraumeni iniciados aos ${idadePrimeiroCancerGeral} anos.`
+            });
+        }
+
+        // slf_crit_4: Variante somática TP53 (teste_somatico(3) < 30 anos OU variante_somatico = 55 independente da idade)
+        const somaticoTp53 = Boolean(document.querySelector('input[name="teste_somatico___3"]')?.checked) || (dadosPaciente['teste_somatico___3'] === '1') || (dadosPaciente['teste_somatico(3)'] === '1');
         const idadePrimeiroC = tumoresProbando.reduce((min, t) => Math.min(min, parseInt(t.idadeDx, 10) || 999), 999);
-        regrasLFS.slf_crit_4 = (somaticoTp53 && idadePrimeiroC < 30);
+        regrasLFS.slf_crit_4 = (somaticoTp53 && idadePrimeiroC < 30) || (varSomatico === 55);
         if (regrasLFS.slf_crit_4) {
             resultado.criteriosAtendidos.push({
                 codigo: "slf_crit_4",
@@ -1233,6 +1337,35 @@ const CdssEngine = {
 
         const temMacrocefalia = tumoresProbando.some(t => this.norm(t.tipo).includes("macrocefalia") || parseInt(t.tipoPrimario || t.cod, 10) === 223);
         const temAutismo = tumoresProbando.some(t => this.norm(t.tipo).includes("autis") || parseInt(t.tipoPrimario || t.cod, 10) === 224);
+        
+        // Contagem de critérios maiores PTEN
+        const temMamaPten = tumoresProbando.some(t => this.norm(t.tipo).includes("mama") || parseInt(t.tipoPrimario || t.cod, 10) === 16);
+        const temEndometrioPten = tumoresProbando.some(t => this.norm(t.tipo).includes("endometr") || parseInt(t.tipoPrimario || t.cod, 10) === 9);
+        const temHamartomaPten = tumoresProbando.some(t => [108, 208].includes(parseInt(t.tipoPrimario || t.cod, 10)));
+        const temPigmentacaoGlande = tumoresProbando.some(t => parseInt(t.tipoPrimario || t.cod, 10) === 220);
+        
+        let countMajorPten = 0;
+        if (temMamaPten) countMajorPten++;
+        if (temEndometrioPten) countMajorPten++;
+        if (temLhermitteDuclos) countMajorPten++;
+        if (temMacrocefalia) countMajorPten++;
+        if (temHamartomaPten) countMajorPten++;
+        if (temPigmentacaoGlande) countMajorPten++;
+        if (dadosPaciente.crit_maior_pten !== undefined && dadosPaciente.crit_maior_pten !== '') {
+            countMajorPten = Math.max(countMajorPten, parseInt(dadosPaciente.crit_maior_pten, 10) || 0);
+        }
+
+        // pten_crit_4: >= 2 critérios maiores (um sendo macrocefalia)
+        regrasPten.pten_crit_4 = temMacrocefalia && (countMajorPten >= 2);
+        if (regrasPten.pten_crit_4) {
+            resultado.criteriosAtendidos.push({
+                codigo: "pten_crit_4",
+                sindrome: "Cowden / PHTS",
+                descricao: "Dois ou mais critérios maiores para PTEN (um sendo macrocefalia)",
+                justificativa: "Associação de macrocefalia com outro critério maior do espectro de Cowden."
+            });
+        }
+
         regrasPten.pten_crit_8 = (temAutismo && temMacrocefalia);
         if (regrasPten.pten_crit_8) {
             resultado.criteriosAtendidos.push({
@@ -1265,7 +1398,7 @@ const CdssEngine = {
             });
         }
 
-        const ptenIndicacao = Object.values(regrasPten).some(v => v === true);
+        const ptenIndicacao = Object.values(regrasPten).some(v => v === true) || (parseInt(dadosPaciente.pten_clinical_dx, 10) === 1);
         resultado.sindromes.pten_indicacao = ptenIndicacao;
 
         // =========================================================================
@@ -1382,7 +1515,7 @@ const CdssEngine = {
 
         // Critério 3: Qualquer número de pólipos juvenis com história familiar de JPS
         const temPolipoJuvProbando = tumoresProbando.some(t => this.norm(t.tipo).includes("juvenil") || parseInt(t.tipoPrimario || t.cod, 10) === 222);
-        const parenteJuvD3 = parentes.some(p => (p.diagnosticos || []).some(d => String(d.codigo) === "19" || this.norm(d.tumor).includes("juvenil")));
+        const parenteJuvD3 = parentes.some(p => (p.diags || p.diagnosticos || []).some(d => String(d.codigo) === "19" || this.norm(d.tumor).includes("juvenil")));
         regrasPolipJuv.polip_juve_crit_3 = (temPolipoJuvProbando && parenteJuvD3);
         if (regrasPolipJuv.polip_juve_crit_3) {
             resultado.criteriosAtendidos.push({
@@ -1441,7 +1574,7 @@ const CdssEngine = {
         // Critérios 2, 3 e 4: Pólipos de PJS (221), Hiperpigmentação (211) e História Familiar de PJS (20)
         const temPolipoPjsProbando = tumoresProbando.some(t => this.norm(t.tipo).includes("peutz") || this.norm(t.tipo).includes("pjs") || parseInt(t.tipoPrimario || t.cod, 10) === 221);
         const temHiperpigProbando = tumoresProbando.some(t => this.norm(t.tipo).includes("hiperpigment") || parseInt(t.tipoPrimario || t.cod, 10) === 211);
-        const parentePjsD3 = parentes.some(p => (p.diagnosticos || []).some(d => String(d.codigo) === "20" || this.norm(d.tumor).includes("peutz")));
+        const parentePjsD3 = parentes.some(p => (p.diags || p.diagnosticos || []).some(d => String(d.codigo) === "20" || this.norm(d.tumor).includes("peutz")));
 
         // Critério 2: Qualquer número de pólipos de PJS com história familiar de PJS em parentes próximos
         regrasPjs.pjs_crit_2 = (temPolipoPjsProbando && parentePjsD3);
@@ -1510,8 +1643,8 @@ const CdssEngine = {
         const regrasVhl = {};
 
         // Avaliação de Heredograma: Parentes de 1º e 2º graus com VHL (código 21)
-        const parenteVhlG1 = parentes.some(p => p.grau === 1 && (p.diagnosticos || []).some(d => String(d.codigo) === "21" || this.norm(d.tumor).includes("vhl") || this.norm(d.tumor).includes("hippel")));
-        const parenteVhlG2 = parentes.some(p => p.grau === 2 && (p.diagnosticos || []).some(d => String(d.codigo) === "21" || this.norm(d.tumor).includes("vhl") || this.norm(d.tumor).includes("hippel")));
+        const parenteVhlG1 = parentes.some(p => this.obterGrauParentesco(p) === 1 && (p.diags || p.diagnosticos || []).some(d => String(d.codigo) === "21" || this.norm(d.tumor).includes("vhl") || this.norm(d.tumor).includes("hippel")));
+        const parenteVhlG2 = parentes.some(p => this.obterGrauParentesco(p) === 2 && (p.diags || p.diagnosticos || []).some(d => String(d.codigo) === "21" || this.norm(d.tumor).includes("vhl") || this.norm(d.tumor).includes("hippel")));
 
         // Contagem de Hemangioblastomas (SNC = 110, Retiniano = 111)
         let nHb = 0;
