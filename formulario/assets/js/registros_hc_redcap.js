@@ -1,6 +1,6 @@
 /**
  * 📋 AGC Analytics — Base Local de Registros HC Cadastrados no REDCap
- * Gerado automaticamente em: 2026-10-27 02:14:15
+ * Gerado automaticamente em: 2026-10-27 02:47:45
  * Total de pacientes indexados: 343
  * Permite a verificação instantânea de duplicidade em tempo real (online e offline).
  */

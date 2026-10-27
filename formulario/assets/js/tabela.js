@@ -2180,7 +2180,13 @@ const TabelaParentes = {
                     anoNasc: null,
                     estadoVital: n.estadoVital,
                     idadeMorte: null,
-                    diags: []
+                    history_code: "1",
+                    diags: [{
+                        codigo: "SEM_HIST",
+                        tumor: "Sem histórico",
+                        idade: null,
+                        outro: ""
+                    }]
                 });
                 adicionados++;
             }
@@ -2218,7 +2224,13 @@ const TabelaParentes = {
             anoNasc: null,
             estadoVital: "Vivo",
             idadeMorte: null,
-            diags: []
+            history_code: "1",
+            diags: [{
+                codigo: "SEM_HIST",
+                tumor: "Sem histórico",
+                idade: null,
+                outro: ""
+            }]
         };
 
         this.parentes.push(novo);
