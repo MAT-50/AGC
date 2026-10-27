@@ -153,6 +153,11 @@
             this.initMenu();
             if (selectEl.disabled) return;
 
+            // Fecha outros menus flutuantes ativos para evitar conflito de foco e renderização
+            if (window.ParentescoCombobox && typeof window.ParentescoCombobox.fechar === "function") {
+                window.ParentescoCombobox.fechar();
+            }
+
             if (this.activeWrapper && this.activeWrapper !== wrapper) {
                 this.activeWrapper.classList.remove("is-open");
             }
@@ -171,6 +176,11 @@
         },
 
         fechar: function() {
+            if (this.activeInput && this.activeInput._selectTimeoutId) {
+                clearTimeout(this.activeInput._selectTimeoutId);
+                this.activeInput._selectTimeoutId = null;
+            }
+
             if (this.menuEl) {
                 this.menuEl.classList.remove("is-active");
                 this.menuEl.style.display = "none";
@@ -545,7 +555,29 @@
             input.addEventListener("focus", () => {
                 if (selectEl.disabled) return;
                 this.abrir(wrapper, input, selectEl, "");
-                setTimeout(() => input.select(), 10);
+                clearTimeout(input._selectTimeoutId);
+                input._selectTimeoutId = setTimeout(() => {
+                    // Seleciona o texto apenas se o elemento ainda for o ativo no documento (impede loops de roubo de foco)
+                    if (document.activeElement === input) {
+                        if (typeof input.setSelectionRange === "function" && input.value) {
+                            input.setSelectionRange(0, input.value.length);
+                        } else if (typeof input.select === "function") {
+                            input.select();
+                        }
+                    }
+                }, 10);
+            });
+
+            input.addEventListener("blur", () => {
+                clearTimeout(input._selectTimeoutId);
+            });
+
+            // Impede conflito de seleção nativa com Shift pressionado entre campos distintos
+            input.addEventListener("mousedown", (e) => {
+                if (e.shiftKey) {
+                    e.preventDefault();
+                    input.focus();
+                }
             });
 
             input.addEventListener("click", () => {

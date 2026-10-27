@@ -177,7 +177,7 @@
                 }
             }
 
-            if (!el) return '';
+            if (!el) return this.getCalculatedFieldValue(fieldName);
 
             if (slatedForErase && this.isElementOrAncestorSlated(el, slatedForErase)) {
                 return '';
@@ -538,6 +538,272 @@
         },
 
         /**
+         * Normalizador de texto para comparações insensíveis a acentos e maiúsculas
+         */
+        normStr: function(str) {
+            return (str || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+                .trim();
+        },
+
+        /**
+         * Determina se o parente informado é o probando (caso índice)
+         */
+        isProbando: function(p) {
+            if (!p) return true;
+            const codA = (p.codA || "").toUpperCase().trim();
+            const codB = parseInt(p.codB, 10) || 0;
+            const codC = parseInt(p.codC, 10) || 0;
+            if (codA === "A1" && codB === 0 && codC === 0) return true;
+            const par = this.normStr(p.parentesco || "");
+            if (par.includes("probando") || par.includes("paciente")) return true;
+            return false;
+        },
+
+        /**
+         * Determina o grau de parentesco consanguíneo (1, 2, 3 ou 99 para não-consanguíneo)
+         */
+        calcularGrauParentesco: function(p) {
+            if (window.CdssEngine && typeof window.CdssEngine.obterGrauParentesco === 'function') {
+                return window.CdssEngine.obterGrauParentesco(p);
+            }
+            const codA = (p.codA || "").toUpperCase().trim();
+            const codB = parseInt(p.codB, 10) || 0;
+            const codC = parseInt(p.codC, 10) || 0;
+
+            if (codA === "A1" && codB === 0 && codC === 0) return 0;
+            if (codA.startsWith("Z") || p.grau === "N") return 99;
+
+            if (p.grau && ["1", "2", "3", "4"].includes(String(p.grau).replace(/[º°]/g, "").trim())) {
+                return parseInt(String(p.grau).replace(/[º°]/g, "").trim(), 10);
+            }
+
+            if (codA.startsWith("A")) {
+                if (codB === 0) return 1;
+                if (codC === 0) return codA === "A1" ? 1 : 2;
+                return codA === "A1" ? 2 : 3;
+            }
+
+            if (codA.startsWith("B") || codA.startsWith("C")) {
+                if (codB === 0) {
+                    const num = parseInt(codA.slice(1), 10) || 1;
+                    return num === 1 ? 1 : 2;
+                }
+                if (codC === 0) {
+                    const num = parseInt(codA.slice(1), 10) || 1;
+                    return num === 1 ? 2 : 3;
+                }
+                return 3;
+            }
+
+            if (codA.startsWith("D") || codA.startsWith("E") || codA.startsWith("F") || codA.startsWith("G")) {
+                const num = parseInt(codA.slice(1), 10) || 1;
+                if (codB === 0 && codC === 0) return num === 1 ? 2 : 3;
+                return 3;
+            }
+
+            if (["H", "I", "J", "K", "L", "M", "N", "O"].some(l => codA.startsWith(l))) {
+                return 3;
+            }
+
+            return 3;
+        },
+
+        /**
+         * Infere o sexo biológico do parente a partir do campo sexo ou do parentesco
+         */
+        inferirSexo: function(p) {
+            const sexo = (p.sexo || "").toUpperCase().trim();
+            if (sexo === "M" || sexo === "F") return sexo;
+            const par = this.normStr(p.parentesco || "");
+            if (/(mae|irma|filha|avo|tia|sobrinha|neta|bisavo|prima)/.test(par)) return "F";
+            if (/(pai|irmao|filho|avo|tio|sobrinho|neto|bisavo|primo)/.test(par)) return "M";
+            return "";
+        },
+
+        /**
+         * Resolve variáveis calculadas de história familiar do REDCap diretamente
+         * a partir da Tabela de Parentes em tempo real.
+         */
+        getCalculatedFieldValue: function(fieldName) {
+            const calculatedTriggers = [
+                'hist_familiar_mama_d2',
+                'hist_familiar_prost_d3',
+                'hist_familiar_ovar_d3',
+                'hist_familiar_osteo_d2',
+                'hist_familiar_sarco_d2',
+                'hist_familiar_snc_d2',
+                'hist_familiar_adreno_d2',
+                'hist_familiar_leu_lin_d3',
+                'hist_familiar_gastr_d2',
+                'hist_familiar_gastr_spec',
+                'hist_familiar_dx_cs_d3',
+                'hist_familiar_dx_brrs_d3',
+                'parente_ls_ccr_ce',
+                'parente_45_menos_1'
+            ];
+
+            if (!calculatedTriggers.includes(fieldName)) {
+                return '';
+            }
+
+            const parentes = (window.TabelaParentes && Array.isArray(window.TabelaParentes.parentes))
+                ? window.TabelaParentes.parentes
+                : (Array.isArray(window._mockParentes) ? window._mockParentes : []);
+
+            if (parentes.length === 0) {
+                return '0';
+            }
+
+            const self = this;
+
+            const hasMatch = parentes.some(p => {
+                if (self.isProbando(p)) return false;
+                const grau = self.calcularGrauParentesco(p);
+                if (grau > 3 || grau <= 0) return false;
+
+                const sexo = self.inferirSexo(p);
+                const diags = Array.isArray(p.diags) ? p.diags : (Array.isArray(p.diagnosticos) ? p.diagnosticos : []);
+                if (diags.length === 0) return false;
+
+                switch (fieldName) {
+                    case 'hist_familiar_mama_d2':
+                        // Mama até 2º grau
+                        if (grau > 2) return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return cod === "5" || t.includes("mama");
+                        });
+
+                    case 'hist_familiar_prost_d3':
+                        // Próstata até 3º grau (homens)
+                        if (sexo === "F") return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return (cod === "6" && sexo === "M") || t.includes("prostata");
+                        });
+
+                    case 'hist_familiar_ovar_d3':
+                        // Ovário / Peritôneo / Trompas até 3º grau (mulheres)
+                        if (sexo === "M") return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return (cod === "6" && sexo === "F") || cod === "13" || t.includes("ovario") || t.includes("perit") || t.includes("tuba") || t.includes("trompa");
+                        });
+
+                    case 'hist_familiar_osteo_d2':
+                        // Osteossarcoma até 2º grau
+                        if (grau > 2) return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return cod === "14" || t.includes("osteossarcoma");
+                        });
+
+                    case 'hist_familiar_sarco_d2':
+                        // Sarcoma partes moles até 2º grau
+                        if (grau > 2) return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return cod === "15" || (t.includes("sarcoma") && !t.includes("osteo"));
+                        });
+
+                    case 'hist_familiar_snc_d2':
+                        // SNC até 2º grau
+                        if (grau > 2) return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return cod === "16" || t.includes("snc") || t.includes("cerebro") || t.includes("sistema nervoso") || t.includes("plexo") || t.includes("coroide") || t.includes("glioma") || t.includes("glioblastoma") || t.includes("astrocitoma");
+                        });
+
+                    case 'hist_familiar_adreno_d2':
+                        // Adrenocortical até 2º grau
+                        if (grau > 2) return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return cod === "17" || t.includes("adrenocortical") || t.includes("adrenal") || t.includes("suprarrenal");
+                        });
+
+                    case 'hist_familiar_leu_lin_d3':
+                        // Leucemia ou Linfoma até 3º grau
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return cod === "9" || t.includes("leucemia") || t.includes("linfoma") || t.includes("llaph") || t.includes("leukemia") || t.includes("lymphoma");
+                        });
+
+                    case 'hist_familiar_gastr_d2':
+                        // Câncer gástrico até 2º grau
+                        if (grau > 2) return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return cod === "18" || t.includes("gastrico") || t.includes("estomago") || t.includes("gastrica");
+                        });
+
+                    case 'hist_familiar_gastr_spec':
+                        // Câncer gástrico especificamente 3º grau
+                        if (grau !== 3) return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return cod === "18" || t.includes("gastrico") || t.includes("estomago") || t.includes("gastrica");
+                        });
+
+                    case 'hist_familiar_dx_cs_d3':
+                        // Síndrome de Cowden até 3º grau
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return cod === "11" || t.includes("cowden");
+                        });
+
+                    case 'hist_familiar_dx_brrs_d3':
+                        // Síndrome de Bannayan-Riley-Ruvalcaba até 3º grau
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            return cod === "12" || t.includes("bannayan") || t.includes("brrs") || t.includes("ruvalcaba");
+                        });
+
+                    case 'parente_ls_ccr_ce':
+                        // Colorectal ou Endométrio até 2º grau
+                        if (grau > 2) return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            const t = self.normStr(d.tumor);
+                            if (cod === "7" || t.includes("colon") || t.includes("reto") || t.includes("colorretal")) return true;
+                            if ((cod === "0" && sexo !== "M") || t.includes("endometrio") || t.includes("utero")) return true;
+                            return false;
+                        });
+
+                    case 'parente_45_menos_1':
+                        // Parente de 1º grau com câncer antes dos 45 anos
+                        if (grau !== 1) return false;
+                        return diags.some(d => {
+                            const cod = String(d.codigo || "").trim();
+                            if (["11", "12", "19", "20", "21", "HIST_DESC", "SEM_HIST"].includes(cod)) return false;
+                            const idade = parseInt(d.idadeDx !== undefined ? d.idadeDx : d.idade, 10);
+                            return !isNaN(idade) && idade > 0 && idade < 45;
+                        });
+
+                    default:
+                        return false;
+                }
+            });
+
+            return hasMatch ? '1' : '0';
+        },
+
+        /**
          * Obtém o valor atual de um campo pelo nome do REDCap
          */
         getFieldValue: function(fieldName, checkboxCode) {
@@ -577,7 +843,7 @@
             }
 
             if (!el) {
-                return '';
+                return this.getCalculatedFieldValue(fieldName);
             }
 
             // Se o elemento estiver em contêiner condicional oculto, seu valor no formulário é inativo

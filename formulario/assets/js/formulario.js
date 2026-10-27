@@ -20,10 +20,13 @@ const FormularioClinico = {
         this.configurarNavegacaoTeclado();
         this.configurarCalculosAutomaticos();
         this.configurarSincronizacaoBanner();
+        this.configurarValidacaoRegistroHC();
         this.configurarControlesDinamicos();
         this.configurarEventosRascunho();
+        this.configurarBotoesLimpar();
         this.configurarAuditoriaCampos();
         this.carregarRascunho();
+        this.atualizarTodosPaineisStatus();
 
         // Avaliação inicial do CDSS após o carregamento do DOM
         setTimeout(() => {
@@ -108,6 +111,13 @@ const FormularioClinico = {
                     }
                     return;
                 }
+
+                // Alt + L: Atalho para Limpar Formulário
+                if (e.key === 'l' || e.key === 'L') {
+                    e.preventDefault();
+                    this.confirmarLimparFormulario();
+                    return;
+                }
             }
 
             // 3. Navegação com Enter / Shift+Enter estilo Planilha
@@ -170,7 +180,7 @@ const FormularioClinico = {
             if (idx > 0) {
                 const prev = celulas[idx - 1];
                 prev.focus();
-                if (typeof prev.select === 'function') prev.select();
+                if (document.activeElement === prev && typeof prev.select === 'function') prev.select();
             } else {
                 // Vai para a última célula da linha anterior
                 const prevTr = tr.previousElementSibling;
@@ -181,7 +191,7 @@ const FormularioClinico = {
                     if (prevCelulas.length > 0) {
                         const ultimo = prevCelulas[prevCelulas.length - 1];
                         ultimo.focus();
-                        if (typeof ultimo.select === 'function') ultimo.select();
+                        if (document.activeElement === ultimo && typeof ultimo.select === 'function') ultimo.select();
                     }
                 }
             }
@@ -190,7 +200,7 @@ const FormularioClinico = {
             if (idx < celulas.length - 1) {
                 const next = celulas[idx + 1];
                 next.focus();
-                if (typeof next.select === 'function') next.select();
+                if (document.activeElement === next && typeof next.select === 'function') next.select();
             } else {
                 // Chegou ao fim da linha atual:
                 const nextTr = tr.nextElementSibling;
@@ -199,7 +209,7 @@ const FormularioClinico = {
                     const nextInput = nextTr.querySelector('input.table-input-code, input, select');
                     if (nextInput) {
                         nextInput.focus();
-                        if (typeof nextInput.select === 'function') nextInput.select();
+                        if (document.activeElement === nextInput && typeof nextInput.select === 'function') nextInput.select();
                     }
                 } else {
                     // É a última linha da tabela: adiciona novo parente automaticamente!
@@ -231,7 +241,7 @@ const FormularioClinico = {
             // Se o elemento atual não foi achado, foca no primeiro visível
             if (visiveis.length > 0) {
                 visiveis[0].focus();
-                if (typeof visiveis[0].select === 'function') visiveis[0].select();
+                if (document.activeElement === visiveis[0] && typeof visiveis[0].select === 'function') visiveis[0].select();
             }
             return;
         }
@@ -240,13 +250,13 @@ const FormularioClinico = {
             if (idx > 0) {
                 const prev = visiveis[idx - 1];
                 prev.focus();
-                if (typeof prev.select === 'function') prev.select();
+                if (document.activeElement === prev && typeof prev.select === 'function') prev.select();
             }
         } else {
             if (idx < visiveis.length - 1) {
                 const next = visiveis[idx + 1];
                 next.focus();
-                if (typeof next.select === 'function') next.select();
+                if (document.activeElement === next && typeof next.select === 'function') next.select();
                 next.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else {
                 // Chegou ao fim da aba: sugere avançar de aba
@@ -294,33 +304,68 @@ const FormularioClinico = {
     },
 
     /**
+     * Recalcula a idade do probando a partir da Data de Nascimento
+     * Suporta tanto formato brasileiro (DD/MM/AAAA) quanto ISO (AAAA-MM-DD)
+     */
+    recalcularIdade: function() {
+        const inDob = document.getElementById('field-dob');
+        const inIdade = document.getElementById('field-idade');
+        if (!inDob || !inIdade) return;
+
+        const val = (inDob.value || '').trim();
+        if (!val) {
+            inIdade.value = '';
+            this.atualizarBanner();
+            this.sincronizarProbandoTabela();
+            return;
+        }
+
+        let dia, mes, ano;
+        const mBr = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (mBr) {
+            dia = parseInt(mBr[1], 10);
+            mes = parseInt(mBr[2], 10) - 1;
+            ano = parseInt(mBr[3], 10);
+        } else {
+            const mIso = val.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
+            if (mIso) {
+                ano = parseInt(mIso[1], 10);
+                mes = parseInt(mIso[2], 10) - 1;
+                dia = parseInt(mIso[3], 10);
+            } else {
+                return;
+            }
+        }
+
+        const nasc = new Date(ano, mes, dia);
+        if (isNaN(nasc.getTime()) || nasc.getFullYear() !== ano || nasc.getMonth() !== mes || nasc.getDate() !== dia) {
+            return;
+        }
+
+        const hoje = new Date();
+        let idade = hoje.getFullYear() - nasc.getFullYear();
+        const m = hoje.getMonth() - nasc.getMonth();
+        if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) {
+            idade--;
+        }
+        if (idade >= 0) {
+            inIdade.value = idade;
+            this.atualizarBanner();
+            this.sincronizarProbandoTabela();
+            this.executarCdss();
+        }
+    },
+
+    /**
      * Cálculos automáticos: Idade via Data de Nascimento e IMC via Peso/Altura
      */
     configurarCalculosAutomaticos: function() {
         const inDob = document.getElementById('field-dob');
         const inIdade = document.getElementById('field-idade');
         if (inDob && inIdade) {
-            const recalcularIdade = () => {
-                if (!inDob.value) {
-                    this.sincronizarProbandoTabela();
-                    return;
-                }
-                const nasc = new Date(inDob.value + 'T00:00:00');
-                const hoje = new Date();
-                let idade = hoje.getFullYear() - nasc.getFullYear();
-                const m = hoje.getMonth() - nasc.getMonth();
-                if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) {
-                    idade--;
-                }
-                if (idade >= 0) {
-                    inIdade.value = idade;
-                    this.atualizarBanner();
-                    this.sincronizarProbandoTabela();
-                    this.executarCdss();
-                }
-            };
-            inDob.addEventListener('change', recalcularIdade);
-            inDob.addEventListener('input', recalcularIdade);
+            const recalcular = () => this.recalcularIdade();
+            inDob.addEventListener('change', recalcular);
+            inDob.addEventListener('input', recalcular);
 
             const recalcularManualIdade = () => {
                 this.atualizarBanner();
@@ -334,21 +379,70 @@ const FormularioClinico = {
         const inPeso = document.getElementById('field-weight');
         const inAltura = document.getElementById('field-height');
         const inBmi = document.getElementById('field-bmi');
+
+        const obterClassificacaoImc = (bmiNum) => {
+            if (isNaN(bmiNum) || bmiNum <= 0) return null;
+            if (bmiNum < 18.5) return { label: 'Abaixo do peso', bg: 'rgba(56, 189, 248, 0.15)', color: '#0284c7', border: '1px solid rgba(56, 189, 248, 0.35)' };
+            if (bmiNum <= 24.9) return { label: 'Peso normal', bg: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.35)' };
+            if (bmiNum <= 29.9) return { label: 'Sobrepeso', bg: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04', border: '1px solid rgba(234, 179, 8, 0.35)' };
+            if (bmiNum <= 34.9) return { label: 'Obesidade Grau I', bg: 'rgba(249, 115, 22, 0.15)', color: '#ea580c', border: '1px solid rgba(249, 115, 22, 0.35)' };
+            if (bmiNum <= 39.9) return { label: 'Obesidade Grau II', bg: 'rgba(239, 68, 68, 0.15)', color: '#dc2626', border: '1px solid rgba(239, 68, 68, 0.35)' };
+            return { label: 'Obesidade Grau III', bg: 'rgba(185, 28, 28, 0.2)', color: '#b91c1c', border: '1px solid rgba(185, 28, 28, 0.45)' };
+        };
+
         const calcBmi = () => {
-            const peso = parseFloat(inPeso.value);
-            const altCm = parseFloat(inAltura.value);
-            if (peso > 0 && altCm > 0) {
-                const altM = altCm > 3 ? altCm / 100 : altCm;
-                const bmi = (peso / (altM * altM)).toFixed(1);
-                inBmi.value = bmi;
+            const peso = parseFloat(inPeso?.value ? String(inPeso.value).replace(',', '.') : '');
+            const altRaw = parseFloat(inAltura?.value ? String(inAltura.value).replace(',', '.') : '');
+            let bmi = null;
+            if (peso > 0 && altRaw > 0) {
+                const altM = altRaw > 3 ? altRaw / 100 : altRaw;
+                bmi = (peso / (altM * altM)).toFixed(1);
+                if (inBmi) inBmi.value = bmi;
+            } else if ((inPeso && inPeso.value) || (inAltura && inAltura.value)) {
+                if (inBmi) inBmi.value = '';
+                bmi = null;
+            } else if (inBmi && inBmi.value) {
+                const parsed = parseFloat(String(inBmi.value).replace(',', '.'));
+                if (parsed > 0) {
+                    bmi = parsed.toFixed(1);
+                }
             } else {
-                inBmi.value = '';
+                if (inBmi) inBmi.value = '';
+                bmi = null;
+            }
+
+            const bmiNum = bmi ? parseFloat(bmi) : null;
+            const info = obterClassificacaoImc(bmiNum);
+            const badge = document.getElementById('badge-bmi-status');
+            if (badge) {
+                if (info) {
+                    badge.textContent = info.label;
+                    badge.style.background = info.bg;
+                    badge.style.color = info.color;
+                    badge.style.border = info.border;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                    badge.textContent = '';
+                }
             }
         };
 
-        if (inPeso && inAltura && inBmi) {
+        this.obterClassificacaoImc = obterClassificacaoImc;
+        this.calcBmi = calcBmi;
+        this.atualizarBmi = calcBmi;
+
+        if (inPeso) {
             inPeso.addEventListener('input', calcBmi);
+            inPeso.addEventListener('change', calcBmi);
+        }
+        if (inAltura) {
             inAltura.addEventListener('input', calcBmi);
+            inAltura.addEventListener('change', calcBmi);
+        }
+        if (inBmi) {
+            inBmi.addEventListener('input', calcBmi);
+            inBmi.addEventListener('change', calcBmi);
         }
     },
 
@@ -414,6 +508,36 @@ const FormularioClinico = {
             }
         }
 
+        // 4.2 Sincronização e exclusividade mútua para quantidade de lesões e opções desc / nsa / inc
+        for (let p = 1; p <= 6; p++) {
+            const inNum = document.getElementById(`field-n-primario-${p}`);
+            const cbDesc = document.getElementById(`field-n-primario-${p}-desc`);
+            const cbNsa = document.getElementById(`field-n-primario-${p}-nsa`);
+            const cbInc = document.getElementById(`field-n-primario-${p}-inc`);
+            const cbs = [cbDesc, cbNsa, cbInc].filter(Boolean);
+
+            cbs.forEach(cb => {
+                cb.addEventListener('change', () => {
+                    if (cb.checked) {
+                        cbs.forEach(outro => {
+                            if (outro !== cb) outro.checked = false;
+                        });
+                        if (inNum) inNum.value = '';
+                    }
+                    this.atualizarMascaraProntuario();
+                });
+            });
+
+            if (inNum) {
+                inNum.addEventListener('input', () => {
+                    if (inNum.value !== '') {
+                        cbs.forEach(cb => { cb.checked = false; });
+                    }
+                    this.atualizarMascaraProntuario();
+                });
+            }
+        }
+
         // 5. Listeners em selects de genes
         document.querySelectorAll('.select-gene-mol').forEach(sel => {
             sel.addEventListener('change', () => {
@@ -421,6 +545,25 @@ const FormularioClinico = {
                     window.RedcapBranching.evalAll();
                 }
             });
+        });
+
+        // 6. Listeners para recálculo automático do CDSS ao alterar qualquer campo clínico relevante
+        document.addEventListener('change', (e) => {
+            if (window._isBatchLoading) return;
+            const target = e.target;
+            if (!target) return;
+            const f = target.getAttribute('data-redcap-field') || target.name || target.id;
+            if (!f) return;
+            if (
+                f.startsWith('ovario_') || f.startsWith('prostata_') || f.startsWith('endometrio_') ||
+                f.startsWith('estomago_') || f.startsWith('tumor_snc_') || f.startsWith('adrenal_') ||
+                f.startsWith('rim_') || f.startsWith('neuroendocrino_') || f.startsWith('sarcoma_') ||
+                f.startsWith('teste_somatico') || f.startsWith('variante_') || f.startsWith('hist_familiar') ||
+                f.startsWith('pre_teste') || f.startsWith('polipo_') || f.startsWith('tireoide_') ||
+                f === 'ashkenazi' || f === 'field-ashkenazi'
+            ) {
+                this.executarCdss();
+            }
         });
     },
 
@@ -511,6 +654,114 @@ const FormularioClinico = {
         }
     },
 
+    /**
+     * Validação em tempo real do Registro HC contra o banco de dados do REDCap.
+     * Detecta duplicidades instantaneamente conforme o usuário digita, destacando
+     * o campo com borda vermelha e exibindo card informativo com os dados do paciente já existente.
+     */
+    configurarValidacaoRegistroHC: function() {
+        const inputHc = document.getElementById('field-registrohc');
+        if (!inputHc) return;
+
+        const dispararVerificacao = () => this.verificarRegistroHC();
+
+        inputHc.addEventListener('input', dispararVerificacao);
+        inputHc.addEventListener('change', dispararVerificacao);
+        inputHc.addEventListener('paste', () => setTimeout(dispararVerificacao, 50));
+
+        // Executa checagem inicial se o campo já veio preenchido (ex: restauração de rascunho)
+        setTimeout(dispararVerificacao, 300);
+    },
+
+    /**
+     * Executa a checagem do Registro HC e atualiza o estado visual do campo e o alerta de duplicidade.
+     */
+    verificarRegistroHC: function() {
+        const inputHc = document.getElementById('field-registrohc');
+        if (!inputHc) return null;
+
+        const alertaBox = document.getElementById('alerta-duplicidade-hc');
+        const alertaDetalhes = document.getElementById('alerta-duplicidade-hc-detalhes');
+        const alertaAcoes = document.getElementById('alerta-duplicidade-hc-acoes');
+        const btnCarregar = document.getElementById('btn-carregar-paciente-hc');
+        const badge = document.getElementById('hc-validation-badge');
+
+        const valor = inputHc.value.trim();
+        if (!valor) {
+            inputHc.classList.remove('is-invalid-hc');
+            if (alertaBox) alertaBox.style.display = 'none';
+            if (badge) badge.style.display = 'none';
+            return null;
+        }
+
+        // Busca na base indexada do REDCap (337 pacientes)
+        const paciente = window.RegistroHcValidator ? window.RegistroHcValidator.buscar(valor) : null;
+        const recordIdAtual = document.getElementById('field-record-id')?.value || null;
+
+        // Se encontrou paciente e não é o mesmo registro atualmente aberto para edição
+        if (paciente && (!recordIdAtual || String(recordIdAtual) !== String(paciente.record_id))) {
+            // 1. Aplica borda vermelha destacada ao redor do campo
+            inputHc.classList.add('is-invalid-hc');
+
+            // 2. Exibe badge de status visual
+            if (badge) {
+                badge.textContent = 'JÁ CADASTRADO';
+                badge.style.color = '#ef4444';
+                badge.style.background = 'rgba(239, 68, 68, 0.15)';
+                badge.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                badge.style.display = 'inline-block';
+            }
+
+            // 3. Monta mensagem detalhada no alerta
+            if (alertaBox && alertaDetalhes) {
+                let infoHtml = `<strong>Record ID:</strong> #${paciente.record_id}`;
+                if (paciente.nome) {
+                    infoHtml += ` &bull; <strong>Paciente:</strong> ${paciente.nome}`;
+                }
+                if (paciente.dob) {
+                    const partes = paciente.dob.split('-');
+                    const dobFmt = (partes.length === 3) ? `${partes[2]}/${partes[1]}/${partes[0]}` : paciente.dob;
+                    infoHtml += ` &bull; <strong>Nasc:</strong> ${dobFmt}`;
+                }
+                if (paciente.rf) {
+                    infoHtml += ` &bull; <strong>RF:</strong> ${paciente.rf}`;
+                }
+                alertaDetalhes.innerHTML = infoHtml;
+                alertaBox.style.display = 'block';
+
+                // Se a ponte com o REDCap estiver disponível no ambiente, exibe botão para carregar dados
+                if (window.RedcapBridge && typeof window.RedcapBridge.carregarPacientePorId === 'function') {
+                    if (alertaAcoes && btnCarregar) {
+                        alertaAcoes.style.display = 'block';
+                        btnCarregar.style.display = 'inline-flex';
+                        btnCarregar.onclick = () => {
+                            if (confirm(`Deseja carregar os dados completos do paciente #${paciente.record_id} (${paciente.nome || paciente.registrohc}) do REDCap?`)) {
+                                window.RedcapBridge.carregarPacientePorId(paciente.record_id);
+                            }
+                        };
+                    }
+                }
+            }
+            return paciente;
+        } else {
+            // Registro não duplicado ou é o mesmo registro atualmente carregado
+            inputHc.classList.remove('is-invalid-hc');
+            if (alertaBox) alertaBox.style.display = 'none';
+
+            const limpo = window.RegistroHcValidator ? window.RegistroHcValidator.normalizar(valor) : valor;
+            if (limpo.length >= 7 && badge) {
+                badge.textContent = 'DISPONÍVEL';
+                badge.style.color = '#22c55e';
+                badge.style.background = 'rgba(34, 197, 94, 0.15)';
+                badge.style.border = '1px solid rgba(34, 197, 94, 0.4)';
+                badge.style.display = 'inline-block';
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
+            return null;
+        }
+    },
+
     sincronizarProbandoTabela: function() {
         if (window.TabelaParentes && typeof window.TabelaParentes.sincronizarDadosProbando === 'function') {
             window.TabelaParentes.sincronizarDadosProbando();
@@ -543,7 +794,7 @@ const FormularioClinico = {
             if (!campoKey) return;
 
             if (el.type === 'checkbox') {
-                const code = el.getAttribute('data-code');
+                const code = el.getAttribute('data-code') || (el.value && el.value !== 'on' ? el.value : '1');
                 const key = code ? `${campoKey}_code_${code}` : campoKey;
                 dadosForm[key] = el.checked;
             } else if (el.type === 'radio') {
@@ -595,7 +846,7 @@ const FormularioClinico = {
                     const parts = key.split('_code_');
                     const fieldName = parts[0];
                     const code = parts[1];
-                    const cb = document.querySelector(`input[data-redcap-field="${fieldName}"][data-code="${code}"], input[name="${fieldName}"][value="${code}"]`);
+                    const cb = document.querySelector(`input[data-redcap-field="${fieldName}"][data-code="${code}"], input[name="${fieldName}"][value="${code}"], input[name="${fieldName}___${code}"], input[data-field-name="${fieldName}___${code}"], input[data-redcap-field="${fieldName}"][value="${code}"]`);
                     if (cb) cb.checked = Boolean(dados[key]);
                 } else {
                     // Busca radio button correspondente à chave e ao valor exato
@@ -636,9 +887,292 @@ const FormularioClinico = {
 
             this.atualizarBanner();
             this.sincronizarProbandoTabela();
+            this.atualizarTodosPaineisStatus();
         } catch (e) {
             console.warn('Erro ao restaurar rascunho:', e);
         }
+    },
+
+    /**
+     * Configuração e Ações de Limpeza Completa do Formulário
+     */
+    configurarBotoesLimpar: function() {
+        const botoes = ['btn-limpar-formulario'];
+        botoes.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.confirmarLimparFormulario();
+                });
+            }
+        });
+
+        // Fechar modal ao pressionar ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.fecharModalLimpar();
+            }
+        });
+    },
+
+    confirmarLimparFormulario: function() {
+        const modal = document.getElementById('modal-confirm-limpar-form');
+        if (modal) {
+            modal.classList.add('active');
+        } else {
+            if (confirm("Deseja realmente limpar todo o formulário? Todos os dados digitados e o rascunho serão apagados.")) {
+                this.limparFormulario();
+            }
+        }
+    },
+
+    fecharModalLimpar: function() {
+        const modal = document.getElementById('modal-confirm-limpar-form');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    },
+
+    limparFormulario: function() {
+        this.fecharModalLimpar();
+
+        // Evita múltiplos alertas sequenciais disparados pelo branching logic
+        window._isBatchLoading = true;
+
+        try {
+            // 1. Limpa todos os inputs de texto, número, data, email e textareas
+            const camposTexto = document.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], input[type="email"], textarea');
+            camposTexto.forEach(el => {
+                if (el.classList && el.classList.contains('searchable-select-input')) return;
+                el.value = '';
+                if (el.classList && el.classList.contains('is-invalid-hc')) {
+                    el.classList.remove('is-invalid-hc');
+                }
+            });
+
+            // 2. Desmarca todos os radio buttons
+            const radios = document.querySelectorAll('input[type="radio"]');
+            radios.forEach(el => {
+                el.checked = false;
+            });
+
+            // 3. Desmarca todos os checkboxes
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(el => {
+                el.checked = false;
+            });
+
+            // 4. Reseta todos os selects nativos e sincroniza SearchableSelect
+            const selects = document.querySelectorAll('select');
+            selects.forEach(sel => {
+                let defaultIndex = -1;
+                for (let i = 0; i < sel.options.length; i++) {
+                    if (sel.options[i].defaultSelected) {
+                        defaultIndex = i;
+                        break;
+                    }
+                }
+                if (defaultIndex !== -1) {
+                    sel.selectedIndex = defaultIndex;
+                } else {
+                    sel.selectedIndex = 0;
+                    sel.value = '';
+                }
+
+                if (window.SearchableSelect && typeof window.SearchableSelect.sincronizarDisplay === 'function') {
+                    const searchInput = sel.parentElement?.querySelector('.searchable-select-input');
+                    if (searchInput) {
+                        window.SearchableSelect.sincronizarDisplay(sel, searchInput);
+                    }
+                }
+            });
+
+            // 5. Restaura a data de consulta padrão para a data atual (DD/MM/AAAA)
+            const hoje = new Date();
+            const d = String(hoje.getDate()).padStart(2, '0');
+            const m = String(hoje.getMonth() + 1).padStart(2, '0');
+            const a = hoje.getFullYear();
+            const dataHojeBr = `${d}/${m}/${a}`;
+
+            const dataConsulta = document.getElementById('field-data-consulta');
+            if (dataConsulta) {
+                dataConsulta.value = dataHojeBr;
+            }
+
+            const inputDataAtendimento = document.getElementById('input-data-atendimento');
+            if (inputDataAtendimento) {
+                inputDataAtendimento.value = dataHojeBr;
+            }
+
+            // Reseta avisos e classes visuais dos campos de data mascarados
+            document.querySelectorAll('.date-masked-input').forEach(inp => {
+                inp.classList.remove('is-invalid', 'is-valid');
+            });
+            document.querySelectorAll('.date-feedback-msg').forEach(msg => {
+                msg.style.display = 'none';
+                msg.textContent = '';
+            });
+
+            // 6. Reseta Record ID e referências do paciente carregado
+            const elRecId = document.getElementById('field-record-id');
+            if (elRecId) elRecId.value = '';
+            if (window.RedcapBridge) {
+                window.RedcapBridge.ultimoRawCarregado = null;
+            }
+
+            // 7. Reseta avisos visuais de validação do Registro HC
+            const inputHc = document.getElementById('field-registrohc');
+            if (inputHc) {
+                inputHc.value = '';
+                inputHc.classList.remove('is-invalid-hc');
+            }
+            const badgeHc = document.getElementById('hc-validation-badge');
+            if (badgeHc) {
+                badgeHc.textContent = '';
+                badgeHc.style.display = 'none';
+            }
+            const alertaHc = document.getElementById('alerta-duplicidade-hc');
+            if (alertaHc) {
+                alertaHc.style.display = 'none';
+            }
+
+            // 8. Reseta contêineres dinâmicos (Variantes, Tumores Primários, Mama)
+            const nVar = document.getElementById('field-n-variantes');
+            if (nVar) nVar.value = '0';
+            this.atualizarQuantidadeVariantes(0);
+
+            const nPrim = document.getElementById('field-n-primarios');
+            if (nPrim) nPrim.value = '0';
+            this.atualizarQuantidadePrimarios(0);
+
+            const nMama = document.getElementById('field-n-mama');
+            if (nMama) nMama.value = '0';
+            for (let m = 1; m <= 3; m++) {
+                const card = document.getElementById(`card-mama-${m}`);
+                if (card) card.style.display = 'none';
+            }
+
+            // 9. Reseta a Tabela de Parentes (recarrega probando padrão A1)
+            if (window.TabelaParentes) {
+                TabelaParentes.parentes = [];
+                TabelaParentes.inicializarProbandoPadrao();
+                TabelaParentes.renderizarTabela();
+                TabelaParentes.sincronizarHeredograma();
+            }
+
+            // 10. Limpa rascunho salvo no LocalStorage
+            try {
+                localStorage.removeItem(this.STORAGE_KEY);
+            } catch (e) {}
+
+            const statusRascunho = document.getElementById('status-rascunho-texto');
+            if (statusRascunho) {
+                statusRascunho.textContent = 'Formulário limpo';
+            }
+
+            // 11. Reseta o Banner do Paciente no topo
+            this.atualizarBanner();
+
+            // 11.5. Reseta todos os status de completude para Completo (valor 2 - padrão REDCap)
+            const instrumentos = ['identificao', 'exame_molecular', 'histria_pessoal', 'hf_pais_e_avs', 'critrios_de_testagem'];
+            instrumentos.forEach(inst => {
+                const sel = document.getElementById(`field-${inst}-complete`);
+                if (sel) sel.value = '2';
+            });
+            this.atualizarTodosPaineisStatus();
+
+            // 12. Retorna para a Aba 1 (Identificação)
+            this.trocarAba('tab-identificacao');
+
+            // 13. Foca no primeiro campo de digitação
+            setTimeout(() => {
+                const primeiroCampo = document.getElementById('field-registrohc') || document.getElementById('field-nome');
+                if (primeiroCampo) primeiroCampo.focus();
+            }, 100);
+
+        } finally {
+            window._isBatchLoading = false;
+        }
+
+        // 14. Reavalia Branching Logic e Motor CDSS após a limpeza
+        if (window.RedcapBranching && typeof window.RedcapBranching.evalAll === 'function') {
+            window.RedcapBranching.evalAll();
+        }
+        this.executarCdss();
+        this.atualizarAuditoriaCampos();
+        if (typeof this.atualizarBmi === 'function') this.atualizarBmi();
+        this.atualizarMascaraProntuario();
+
+        // 15. Notificação amigável via Toast
+        this.mostrarToast('🗑️ Formulário limpo com sucesso!');
+    },
+
+    /**
+     * Mapeamento e Sincronização dos Botões de Status do REDCap (Complete? 0, 1, 2)
+     */
+    definirStatusComplete: function(formName, val) {
+        const sel = document.getElementById(`field-${formName}-complete`);
+        if (sel) {
+            sel.value = String(val);
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        this.sincronizarStatusComplete(formName, val);
+    },
+
+    sincronizarStatusComplete: function(formName, val) {
+        const abaId = this.obterAbaPorInstrumento(formName);
+        const panel = document.getElementById(`panel-status-tab-${abaId}`);
+        if (!panel) return;
+
+        // Atualiza a borda colorida do painel
+        panel.classList.remove('status-is-0', 'status-is-1', 'status-is-2');
+        panel.classList.add(`status-is-${val}`);
+
+        // Atualiza botões segmentados
+        const btns = panel.querySelectorAll('.redcap-status-btn');
+        btns.forEach(btn => {
+            if (btn.getAttribute('data-val') === String(val)) {
+                btn.classList.add('is-active');
+            } else {
+                btn.classList.remove('is-active');
+            }
+        });
+
+        // Atualiza o select nativo se necessário
+        const sel = document.getElementById(`field-${formName}-complete`);
+        if (sel && sel.value !== String(val)) {
+            sel.value = String(val);
+        }
+
+        // Se o instrumento possuir instrumento correlato na mesma aba, sincroniza também
+        if (formName === 'identificao') {
+            const d = document.getElementById('field-demografia-complete');
+            if (d) d.value = String(val);
+        } else if (formName === 'histria_pessoal') {
+            const t = document.getElementById('field-tumores_e_leses-complete');
+            if (t) t.value = String(val);
+        }
+    },
+
+    obterAbaPorInstrumento: function(formName) {
+        const map = {
+            'identificao': 'identificacao',
+            'exame_molecular': 'molecular',
+            'histria_pessoal': 'historia-pessoal',
+            'hf_pais_e_avs': 'historia-familiar',
+            'critrios_de_testagem': 'criterios'
+        };
+        return map[formName] || formName;
+    },
+
+    atualizarTodosPaineisStatus: function() {
+        const instrumentos = ['identificao', 'exame_molecular', 'histria_pessoal', 'hf_pais_e_avs', 'critrios_de_testagem'];
+        instrumentos.forEach(inst => {
+            const sel = document.getElementById(`field-${inst}-complete`);
+            const val = (sel && sel.value) ? sel.value : '2';
+            this.sincronizarStatusComplete(inst, val);
+        });
     },
 
     mostrarToast: function(mensagem) {
@@ -664,7 +1198,19 @@ const FormularioClinico = {
 
         // Extrai dados clínicos do probando a partir dos campos do formulário
         const sexVal = document.querySelector('input[name="sex"]:checked')?.value || '1';
+
+        // Coleta todos os campos ativos do formulário via RedcapBridge
+        let dadosForm = {};
+        if (window.RedcapBridge && typeof RedcapBridge.coletarDadosFormulario === 'function') {
+            try {
+                dadosForm = RedcapBridge.coletarDadosFormulario() || {};
+            } catch (e) {
+                console.warn('Erro ao coletar dados via RedcapBridge para CDSS:', e);
+            }
+        }
+
         const dadosClinicos = {
+            ...dadosForm,
             idade: parseInt(document.getElementById('field-idade')?.value, 10) || 45,
             sex: sexVal,
             sexo: sexVal === '2' ? 'M' : 'F',
@@ -756,9 +1302,11 @@ const FormularioClinico = {
         const nomeCompleto = `${nome} ${sobrenome}`.trim() || '[NÃO INFORMADO]';
         const hc = document.getElementById('field-registrohc')?.value || '[NÃO INFORMADO]';
         const rf = document.getElementById('field-rf')?.value || '—';
-        const dob = document.getElementById('field-dob')?.value || '—';
+        const dobRaw = (document.getElementById('field-dob')?.value || '').trim();
+        const dob = window.AGCDateInput ? window.AGCDateInput.formatToBr(dobRaw) || '—' : dobRaw || '—';
         const idade = document.getElementById('field-idade')?.value || '—';
-        const dataConsulta = document.getElementById('field-data-consulta')?.value || new Date().toLocaleDateString('pt-BR');
+        const dataConsultaRaw = (document.getElementById('field-data-consulta')?.value || '').trim();
+        const dataConsulta = window.AGCDateInput ? window.AGCDateInput.formatToBr(dataConsultaRaw) || new Date().toLocaleDateString('pt-BR') : dataConsultaRaw || new Date().toLocaleDateString('pt-BR');
 
         const sexVal = document.querySelector('input[name="sex"]:checked')?.value;
         const sexoStr = sexVal === '1' ? 'Feminino (♀)' : (sexVal === '2' ? 'Masculino (♂)' : 'Não informado');
@@ -770,6 +1318,12 @@ const FormularioClinico = {
         const ufLabel = window.REDCAP_DICTIONARY?.estados_uf?.find(u => u.value === ufVal)?.label || 'SP';
         const cidade = document.getElementById('field-city')?.value || 'Ribeirão Preto';
         const bmi = document.getElementById('field-bmi')?.value;
+        let bmiFormatado = '';
+        if (bmi) {
+            const bmiNum = parseFloat(String(bmi).replace(',', '.'));
+            const imcInfo = (typeof this.obterClassificacaoImc === 'function') ? this.obterClassificacaoImc(bmiNum) : null;
+            bmiFormatado = ` | IMC: ${bmi}${imcInfo ? ` (${imcInfo.label})` : ''}`;
+        }
 
         // Motivo
         const motivos = [];
@@ -797,6 +1351,22 @@ const FormularioClinico = {
                 }
                 let linha = `- Apresentação #${i}: ${rotuloTumor}`;
                 if (idadeDx) linha += ` aos ${idadeDx} anos`;
+
+                const nPrim = document.getElementById(`field-n-primario-${i}`)?.value;
+                const nDesc = document.querySelector(`input[data-redcap-field="n_primario_${i}_desc"]`)?.checked;
+                const nNsa = document.querySelector(`input[data-redcap-field="n_primario_${i}_nsa"]`)?.checked;
+                const nInc = document.querySelector(`input[data-redcap-field="n_primario_${i}_inc"]`)?.checked;
+
+                if (nInc) {
+                    linha += ' (Nº incontável de lesões)';
+                } else if (nDesc) {
+                    linha += ' (Nº desconhecido)';
+                } else if (nNsa) {
+                    linha += ' (Não se aplica numerar)';
+                } else if (nPrim && parseInt(nPrim, 10) > 1) {
+                    linha += ` (${nPrim} lesões)`;
+                }
+
                 if (det) linha += ` [Detalhes: ${det}]`;
                 tumoresProbando.push(linha);
             }
@@ -873,6 +1443,7 @@ const FormularioClinico = {
                 }
             }
         }
+        const obsMolTxt = document.getElementById('field-obs-molecular')?.value?.trim() || '';
 
         // CDSS
         const resCdss = this.executarCdss();
@@ -905,6 +1476,31 @@ const FormularioClinico = {
         const slProb = document.querySelector('input[name="pre_teste_sl"]')?.value;
         if (slProb) preTesteItens.push(`Probabilidade Lynch (MMR): ${slProb}`);
 
+        // Diagnósticos sindrômicos (Confirmados / Suspeitos)
+        const dxConfItens = [];
+        document.querySelectorAll('input[data-redcap-field="dx_conf"]:checked').forEach(cb => {
+            const val = cb.getAttribute('data-code');
+            const match = window.REDCAP_SCHEMA?.dictionary?.choices_by_field?.dx_conf?.find(c => String(c.value) === String(val));
+            let label = match ? match.label : val;
+            if (val === '20') {
+                const outEsp = document.getElementById('field-outros-dx-espec')?.value;
+                if (outEsp) label += ` (${outEsp})`;
+            }
+            dxConfItens.push(label);
+        });
+
+        const dxSusItens = [];
+        document.querySelectorAll('input[data-redcap-field="dx_sus"]:checked').forEach(cb => {
+            const val = cb.getAttribute('data-code');
+            const match = window.REDCAP_SCHEMA?.dictionary?.choices_by_field?.dx_sus?.find(c => String(c.value) === String(val));
+            let label = match ? match.label : val;
+            if (val === '20') {
+                const outEsp = document.getElementById('field-outros-dx-espec-sus')?.value;
+                if (outEsp) label += ` (${outEsp})`;
+            }
+            dxSusItens.push(label);
+        });
+
         // Monta a máscara textual completa
         const mascara = `================================================================================
 AMBULATÓRIO DE ACONSELHAMENTO GENÉTICO DO CÂNCER (AGC) — FMRP-USP / HCFMRP-USP
@@ -915,7 +1511,7 @@ PACIENTE (PROBANDO) : ${nomeCompleto}
 REGISTRO HC         : ${hc}
 REGISTRO FAMILIAR   : ${rf}
 DATA DE NASCIMENTO  : ${dob} (${idade} anos) | SEXO: ${sexoStr}
-PERFIL DEMOGRÁFICO  : Raça/Cor: ${racaLabel} | Procedência: ${cidade}/${ufLabel}${bmi ? ` | IMC: ${bmi}` : ''}
+PERFIL DEMOGRÁFICO  : Raça/Cor: ${racaLabel} | Procedência: ${cidade}/${ufLabel}${bmiFormatado}
 
 --------------------------------------------------------------------------------
 1. MOTIVO DO ENCAMINHAMENTO & HÁBITOS DE VIDA
@@ -929,6 +1525,8 @@ PERFIL DEMOGRÁFICO  : Raça/Cor: ${racaLabel} | Procedência: ${cidade}/${ufLab
 ${tumoresProbando.length > 0 ? tumoresProbando.join('\n') : 'Sem história pessoal de neoplasia relatada até o momento.'}
 ${subDetalhes.length > 0 ? '\nDetalhes Específicos & Biomarcadores:\n' + subDetalhes.join('\n') : ''}
 ${somaticoItens.length > 0 ? '\nTestagem Somática & Imunohistoquímica:\n' + somaticoItens.map(s => `- ${s}`).join('\n') : ''}
+${dxConfItens.length > 0 ? '\nDiagnósticos Sindrômicos Confirmados:\n' + dxConfItens.map(d => `- ${d}`).join('\n') : ''}
+${dxSusItens.length > 0 ? '\nDiagnósticos Sindrômicos Suspeitos (Hipóteses):\n' + dxSusItens.map(d => `- ${d}`).join('\n') : ''}
 
 --------------------------------------------------------------------------------
 3. HISTÓRIA FAMILIAR DE CÂNCER (HEREDOGRAMA ESTRUTURADO)
@@ -945,7 +1543,7 @@ ${realizouMol === '1'
     ? (variantesReportadas.length > 0 
         ? 'Exame Molecular REALIZADO com variantes reportadas:\n' + variantesReportadas.join('\n')
         : 'Exame Molecular REALIZADO: Sem variantes patogênicas reportadas (Negativo/Informativo).')
-    : 'Exame molecular ainda não realizado pelo probando.'}
+    : 'Exame molecular ainda não realizado pelo probando.'}${obsMolTxt ? `\n- Observações do Exame Molecular: ${obsMolTxt}` : ''}
 
 --------------------------------------------------------------------------------
 5. AVALIAÇÃO DE RISCO & DIRETRIZES NCCN (CDSS v3.2026)

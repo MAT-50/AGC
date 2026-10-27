@@ -112,6 +112,12 @@ const ParentescoCombobox = {
 
     abrir: function(wrapper, input, rowIndex, onSelect, filtroInicial = null) {
         this.init();
+
+        // Fecha outros menus flutuantes ativos (inclusive SearchableSelect)
+        if (window.SearchableSelect && typeof window.SearchableSelect.fechar === "function") {
+            window.SearchableSelect.fechar();
+        }
+
         if (this.activeWrapper && this.activeWrapper !== wrapper) {
             this.activeWrapper.classList.remove("is-open");
         }
@@ -154,6 +160,11 @@ const ParentescoCombobox = {
     },
 
     fechar: function() {
+        if (this.activeInput && this.activeInput._selectTimeoutId) {
+            clearTimeout(this.activeInput._selectTimeoutId);
+            this.activeInput._selectTimeoutId = null;
+        }
+
         if (this.menuEl) {
             this.menuEl.classList.remove("is-active");
             this.menuEl.style.display = "none";
@@ -482,7 +493,27 @@ const ParentescoCombobox = {
         btnArrow.style.padding = "3px";
         input.addEventListener("focus", () => {
             this.abrir(wrapper, input, rowIndex, onSelect, "");
-            setTimeout(() => input.select(), 10);
+            clearTimeout(input._selectTimeoutId);
+            input._selectTimeoutId = setTimeout(() => {
+                if (document.activeElement === input) {
+                    if (typeof input.setSelectionRange === "function" && input.value) {
+                        input.setSelectionRange(0, input.value.length);
+                    } else if (typeof input.select === "function") {
+                        input.select();
+                    }
+                }
+            }, 10);
+        });
+
+        input.addEventListener("blur", () => {
+            clearTimeout(input._selectTimeoutId);
+        });
+
+        input.addEventListener("mousedown", (e) => {
+            if (e.shiftKey) {
+                e.preventDefault();
+                input.focus();
+            }
         });
 
         input.addEventListener("click", () => {
@@ -712,9 +743,14 @@ const TabelaParentes = {
             const a = hoje.getFullYear();
             const m = String(hoje.getMonth() + 1).padStart(2, "0");
             const d = String(hoje.getDate()).padStart(2, "0");
-            inputDataAtendimento.value = `${a}-${m}-${d}`;
+            inputDataAtendimento.value = `${d}/${m}/${a}`;
             inputDataAtendimento.addEventListener("change", () => {
                 this.recalcularTodasIdadesPorData();
+            });
+            inputDataAtendimento.addEventListener("input", () => {
+                if (inputDataAtendimento.value.length === 10) {
+                    this.recalcularTodasIdadesPorData();
+                }
             });
         }
 
@@ -786,14 +822,24 @@ const TabelaParentes = {
     obterDataReferencia: function() {
         const input = document.getElementById("input-data-atendimento");
         if (input && input.value) {
-            const partes = input.value.split("-");
-            if (partes.length === 3) {
-                const a = parseInt(partes[0], 10);
-                const m = parseInt(partes[1], 10) - 1;
-                const d = parseInt(partes[2], 10);
-                if (!isNaN(a) && !isNaN(m) && !isNaN(d)) {
-                    return new Date(a, m, d);
-                }
+            const val = input.value.trim();
+            // Formato brasileiro DD/MM/AAAA
+            const mBr = val.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+            if (mBr) {
+                const d = parseInt(mBr[1], 10);
+                const m = parseInt(mBr[2], 10) - 1;
+                const a = parseInt(mBr[3], 10);
+                const dt = new Date(a, m, d);
+                if (!isNaN(dt.getTime())) return dt;
+            }
+            // Formato ISO AAAA-MM-DD
+            const mIso = val.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
+            if (mIso) {
+                const a = parseInt(mIso[1], 10);
+                const m = parseInt(mIso[2], 10) - 1;
+                const d = parseInt(mIso[3], 10);
+                const dt = new Date(a, m, d);
+                if (!isNaN(dt.getTime())) return dt;
             }
         }
         return new Date();
@@ -869,6 +915,13 @@ const TabelaParentes = {
                 }
             } catch (err) {
                 console.warn("sincronizarHeredograma hook error:", err);
+            }
+        }
+        if (window.RedcapBranching && typeof window.RedcapBranching.evalAll === 'function') {
+            try {
+                window.RedcapBranching.evalAll();
+            } catch (err) {
+                console.warn("RedcapBranching evalAll error:", err);
             }
         }
     },
@@ -2703,7 +2756,9 @@ const TabelaParentes = {
                     this.parentes = dados.parentes;
                     if (dados.dataAtendimento) {
                         const inputData = document.getElementById("input-data-atendimento");
-                        if (inputData) inputData.value = dados.dataAtendimento;
+                        if (inputData) {
+                            inputData.value = window.AGCDateInput ? window.AGCDateInput.formatToBr(dados.dataAtendimento) : dados.dataAtendimento;
+                        }
                     }
                     this.renderizarTabela();
                     this.sincronizarHeredograma();

@@ -3,7 +3,7 @@
  * Ambulatório de Aconselhamento Genético do Câncer — FMRP-USP
  * 
  * Permite:
- * 1. Navegar e pesquisar entre os 331 pacientes reais do REDCap
+ * 1. Navegar e pesquisar entre os 343 pacientes reais do REDCap
  * 2. Carregar instantaneamente um paciente no formulário (Abas 1 a 5 + Tabela de Parentes)
  * 3. Exportar o paciente atual em formato CSV 5.098 colunas compatível com o REDCap
  * 4. Comparar os campos calculados locais com o ground truth do REDCap
@@ -77,7 +77,7 @@ const RedcapBridge = {
 
         const sel = document.getElementById('select-paciente-redcap');
         if (sel && (!this.pacientes || this.pacientes.length === 0)) {
-            sel.innerHTML = '<option disabled selected>⏳ Carregando os 331 pacientes do REDCap...</option>';
+            sel.innerHTML = '<option disabled selected>⏳ Carregando os 343 pacientes do REDCap...</option>';
         }
 
         try {
@@ -261,7 +261,7 @@ const RedcapBridge = {
 
         if (btn) btn.disabled = true;
         if (badge) {
-            badge.textContent = 'Calculando 331 pacientes...';
+            badge.textContent = 'Calculando 343 pacientes...';
             badge.style.background = 'rgba(234, 179, 8, 0.15)';
             badge.style.color = '#ca8a04';
         }
@@ -306,7 +306,7 @@ const RedcapBridge = {
 
             for (const key in nomesSindromes) {
                 const info = nomesSindromes[key];
-                const st = sind[key] || { concordancia_pct: 100, concordantes: 331, total: 331, positivos_redcap: 0, positivos_calculados: 0 };
+                const st = sind[key] || { concordancia_pct: 100, concordantes: 343, total: 343, positivos_redcap: 0, positivos_calculados: 0 };
 
                 linhasTabelaHtml += `
                     <tr style="border-bottom:1px solid var(--border-color); font-size:12px;">
@@ -488,6 +488,8 @@ const RedcapBridge = {
                     if (window.FormularioClinico) {
                         FormularioClinico.executarCdss();
                         FormularioClinico.atualizarAuditoriaCampos();
+                        if (typeof FormularioClinico.atualizarBmi === 'function') FormularioClinico.atualizarBmi();
+                        FormularioClinico.atualizarTodosPaineisStatus();
                         FormularioClinico.salvarRascunho(false);
                         FormularioClinico.mostrarToast(`✓ Paciente #${recordId} (${raw['nome'] || ''}) carregado com sucesso!`);
                     }
@@ -547,14 +549,20 @@ const RedcapBridge = {
             const checkboxes = document.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(cb => {
                 const field = cb.getAttribute('data-redcap-field') || '';
-                const code = cb.getAttribute('data-code') || '';
+                let code = cb.getAttribute('data-code') || '';
                 const name = cb.getAttribute('name') || '';
+
+                if (!code && cb.value && cb.value !== 'on') {
+                    code = cb.value;
+                }
 
                 let val = null;
                 if (field && code && raw[`${field}___${code}`] !== undefined) {
                     val = raw[`${field}___${code}`];
                 } else if (name && raw[name] !== undefined) {
                     val = raw[name];
+                } else if (field && raw[`${field}___1`] !== undefined) {
+                    val = raw[`${field}___1`];
                 } else if (field && raw[field] !== undefined) {
                     val = raw[field];
                 }
@@ -603,7 +611,20 @@ const RedcapBridge = {
                 }
 
                 if (field && raw[field] !== undefined && raw[field] !== null) {
-                    ctrl.value = raw[field];
+                    let valRaw = raw[field];
+                    // Converte data ISO do REDCap para formato brasileiro DD/MM/AAAA nos campos com máscara
+                    if (ctrl.classList.contains('date-masked-input') || ctrl.getAttribute('data-is-date') === 'true' || ['dob', 'data_altura', 'data_peso', 'data_exame_molecular', 'data_primeira_consulta_agc', 'date_death', 'last_followup'].includes(field)) {
+                        if (window.AGCDateInput && typeof window.AGCDateInput.formatToBr === 'function') {
+                            valRaw = window.AGCDateInput.formatToBr(valRaw);
+                        }
+                    }
+                    ctrl.value = valRaw;
+
+                    if (window.AGCDateInput && ctrl.classList.contains('date-masked-input')) {
+                        const wrapper = ctrl.closest('.date-input-wrapper');
+                        const feedback = wrapper?.parentElement ? wrapper.parentElement.querySelector('.date-feedback-msg') : null;
+                        window.AGCDateInput.validarCampoVisual(ctrl, feedback);
+                    }
                 }
             });
 
@@ -705,6 +726,10 @@ const RedcapBridge = {
 
         todosInstrumentos.forEach(form => {
             const completeKey = `${form}_complete`;
+            // Se já foi preenchido pelo formulário, prioriza a seleção do usuário
+            if (dadosForm[completeKey] !== undefined && dadosForm[completeKey] !== '') {
+                return;
+            }
             if (this.ultimoRawCarregado && this.ultimoRawCarregado[completeKey] !== undefined) {
                 dadosForm[completeKey] = String(this.ultimoRawCarregado[completeKey]);
             } else {
@@ -755,8 +780,24 @@ const RedcapBridge = {
 
             // Checkbox
             if (el.type === 'checkbox') {
-                const code = el.getAttribute('data-code');
+                let code = el.getAttribute('data-code');
                 let col = fieldName;
+
+                // Resolução resiliente de coluna para checkboxes (com ou sem data-code)
+                if (!code && !fieldName.includes('___')) {
+                    if (el.value && el.value !== 'on') {
+                        code = el.value;
+                    } else if (el.name && el.name.includes('___')) {
+                        col = el.name;
+                        code = el.name.split('___')[1];
+                    } else if (el.getAttribute('data-field-name') && el.getAttribute('data-field-name').includes('___')) {
+                        col = el.getAttribute('data-field-name');
+                        code = col.split('___')[1];
+                    } else if (Array.isArray(window.REDCAP_HEADER_5290) && window.REDCAP_HEADER_5290.includes(`${fieldName}___1`)) {
+                        code = '1';
+                    }
+                }
+
                 if (code) {
                     col = `${fieldName}___${code}`;
                 } else if (fieldName.includes('___')) {
@@ -765,6 +806,9 @@ const RedcapBridge = {
                 camposNoFormulario.add(col);
                 if (el.checked) {
                     dadosForm[col] = '1';
+                    if (!fieldName.includes('___')) {
+                        dadosForm[fieldName] = '1';
+                    }
                 }
                 return;
             }
@@ -780,7 +824,14 @@ const RedcapBridge = {
 
             // Select, text, number, date, textarea
             if (el.value !== '' && el.value !== null && el.value !== undefined) {
-                dadosForm[fieldName] = String(el.value).trim();
+                let valStr = String(el.value).trim();
+                // Converte campos com máscara brasileira DD/MM/AAAA para ISO AAAA-MM-DD exigido pelo REDCap
+                if (el.classList.contains('date-masked-input') || el.getAttribute('data-is-date') === 'true' || ['dob', 'data_altura', 'data_peso', 'data_exame_molecular', 'data_primeira_consulta_agc', 'date_death', 'last_followup'].includes(fieldName)) {
+                    if (window.AGCDateInput && typeof window.AGCDateInput.formatToIso === 'function') {
+                        valStr = window.AGCDateInput.formatToIso(valStr) || valStr;
+                    }
+                }
+                dadosForm[fieldName] = valStr;
             }
         });
 
@@ -867,6 +918,14 @@ const RedcapBridge = {
                 const header = window.REDCAP_HEADER_5290;
                 const linha = header.map(col => {
                     let val = dadosForm[col] !== undefined && dadosForm[col] !== null ? String(dadosForm[col]) : '';
+                    // Se a coluna for checkbox (ex: n_primario_1_desc___1) e estiver vazia, verifica se o valor base foi setado como '1'
+                    if (val === '' && col.includes('___')) {
+                        const baseField = col.split('___')[0];
+                        const code = col.split('___')[1];
+                        if (code === '1' && (dadosForm[baseField] === '1' || dadosForm[baseField] === 1 || dadosForm[baseField] === true)) {
+                            val = '1';
+                        }
+                    }
                     if (val.includes('"') || val.includes(',') || val.includes('\n') || val.includes('\r')) {
                         return '"' + val.replace(/"/g, '""') + '"';
                     }

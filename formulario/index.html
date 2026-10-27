@@ -288,6 +288,16 @@
                     Rascunho autom&aacute;tico ativo
                 </span>
 
+                <button type="button" class="btn btn-outline-danger btn-sm" id="btn-limpar-formulario" title="Limpar todo o formul&aacute;rio e reiniciar para novo paciente">
+                    <svg width="14" height="14" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                    Limpar Formul&aacute;rio
+                </button>
+
                 <button type="button" class="btn btn-primary btn-sm" id="btn-salvar-rascunho" title="Salvar dados atuais no navegador">
                     <svg width="14" height="14" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
@@ -321,11 +331,6 @@
             </div>
 
             <div class="patient-banner-actions">
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <label for="field-data-consulta" style="font-size:12px; font-weight:700; color:var(--text-muted); white-space:nowrap;">Data Consulta:</label>
-                    <input type="date" id="field-data-consulta" data-redcap-field="data_primeira_consulta_agc" class="form-control" style="width:140px; height:32px; font-size:12px;" value="2026-10-20">
-                </div>
-
                 
 
                 <button type="button" class="btn btn-secondary btn-sm" id="btn-exportar-csv-redcap" title="Exportar Paciente Atual em CSV Oficial (5.098 Colunas REDCap)">
@@ -408,7 +413,7 @@
                             <label class="form-label">
                                 Data de Nascimento <span class="field-redcap-tag">[dob]</span>
                             </label>
-                            <input type="date" id="field-dob" data-redcap-field="dob" class="form-control">
+                            <input type="text" id="field-dob" data-redcap-field="dob" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10">
                         </div>
 
                         <div class="form-group">
@@ -444,11 +449,26 @@
                             &#127973; 1.2 Registros Hospitalares &amp; Ambulatoriais
                         </div>
 
-                        <div class="form-group">
-                            <label class="form-label">
+                        <div class="form-group" id="container-field-registrohc">
+                            <label class="form-label" for="field-registrohc">
                                 Registro HC (Prontu&aacute;rio) <span class="field-redcap-tag">[registrohc]</span>
                             </label>
-                            <input type="text" id="field-registrohc" data-redcap-field="registrohc" class="form-control" placeholder="ex: 1234567">
+                            <div style="position: relative;">
+                                <input type="text" id="field-registrohc" data-redcap-field="registrohc" class="form-control" placeholder="ex: 1890780F" autocomplete="off" style="text-transform: uppercase;">
+                                <span id="hc-validation-badge" style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; pointer-events: none;"></span>
+                            </div>
+                            <div id="alerta-duplicidade-hc" class="hc-alerta-box" style="display: none;">
+                                <div class="hc-alerta-header">
+                                    <span>&#9888;&#65039;</span>
+                                    <span>Aten&ccedil;&atilde;o: Registro HC j&aacute; cadastrado no REDCap!</span>
+                                </div>
+                                <div class="hc-alerta-detalhes" id="alerta-duplicidade-hc-detalhes"></div>
+                                <div id="alerta-duplicidade-hc-acoes" style="display: none;">
+                                    <button type="button" class="btn-carregar-paciente-hc" id="btn-carregar-paciente-hc">
+                                        &#128229; Carregar dados deste paciente no formul&aacute;rio
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -671,7 +691,7 @@
                             <label class="form-label">
                                 Data da Medi&ccedil;&atilde;o Altura <span class="field-redcap-tag">[data_altura]</span>
                             </label>
-                            <input type="date" id="field-data-altura" data-redcap-field="data_altura" class="form-control">
+                            <input type="text" id="field-data-altura" data-redcap-field="data_altura" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10">
                         </div>
 
                         <div class="form-group">
@@ -685,24 +705,57 @@
                             <label class="form-label">
                                 Data da Medi&ccedil;&atilde;o Peso <span class="field-redcap-tag">[data_peso]</span>
                             </label>
-                            <input type="date" id="field-data-peso" data-redcap-field="data_peso" class="form-control">
+                            <input type="text" id="field-data-peso" data-redcap-field="data_peso" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10">
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">
-                                IMC Calculado <span class="field-redcap-tag">[bmi]</span>
+                            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>IMC Calculado <span class="field-redcap-tag">[bmi]</span></span>
+                                <span id="badge-bmi-status" class="badge" style="display:none; font-size:11px; padding:2px 8px; border-radius:12px; font-weight:700;"></span>
                             </label>
                             <input type="text" id="field-bmi" data-redcap-field="bmi" class="form-control" placeholder="Auto" readonly>
                         </div>
 
-                        <div class="form-group">
-                            <label class="form-label">
-                                Classifica&ccedil;&atilde;o IMC (OMS)
-                            </label>
-                            <input type="text" id="field-bmi-status" class="form-control" placeholder="Status do IMC" readonly style="color:var(--text-muted); background:var(--bg-app);">
-                        </div>
-
                     </div>
+                </div>
+            </div>
+
+            <!-- STATUS DO INSTRUMENTO (REDCAP FORM STATUS) -->
+            <div class="redcap-form-status-panel status-is-2" id="panel-status-tab-identificacao">
+                <div class="redcap-status-info">
+                    <div class="redcap-status-title-row">
+                        <span class="redcap-status-header-text">Form Status</span>
+                        <span class="field-redcap-tag">[identificao_complete]</span>
+                    </div>
+                    <div class="redcap-status-controls">
+                        <label class="redcap-status-label-text" for="field-identificao-complete">Complete?</label>
+                        <div class="redcap-status-btn-group" role="group" aria-label="Status de preenchimento">
+                            <button type="button" class="redcap-status-btn" data-val="0" title="0 - Incomplete (Incompleto)" onclick="FormularioClinico.definirStatusComplete('identificao', '0')">
+                                <span class="redcap-status-dot dot-0"></span> Incomplete
+                            </button>
+                            <button type="button" class="redcap-status-btn" data-val="1" title="1 - Unverified (N&atilde;o verificado)" onclick="FormularioClinico.definirStatusComplete('identificao', '1')">
+                                <span class="redcap-status-dot dot-1"></span> Unverified
+                            </button>
+                            <button type="button" class="redcap-status-btn is-active" data-val="2" title="2 - Complete (Completo - Padr&atilde;o)" onclick="FormularioClinico.definirStatusComplete('identificao', '2')">
+                                <span class="redcap-status-dot dot-2"></span> Complete
+                            </button>
+                        </div>
+                        <select class="form-control redcap-status-select-native" id="field-identificao-complete" data-redcap-field="identificao_complete" name="identificao_complete" onchange="FormularioClinico.sincronizarStatusComplete('identificao', this.value)">
+                            <option value="0">0 - Incomplete</option>
+                            <option value="1">1 - Unverified</option>
+                            <option value="2" selected>2 - Complete</option>
+                        </select>
+                        <input type="hidden" id="field-demografia-complete" data-redcap-field="demografia_complete" value="2">
+                    </div>
+                </div>
+
+                <div class="redcap-status-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="FormularioClinico.salvarRascunho(true)" title="Salvar rascunho dos dados atuais no navegador">
+                        &#128190; Salvar Rascunho
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="FormularioClinico.trocarAba('tab-molecular')" title="Avan&ccedil;ar para o pr&oacute;ximo instrumento">
+                        Avan&ccedil;ar para Exame Molecular &#10132;
+                    </button>
                 </div>
             </div>
 
@@ -742,7 +795,7 @@
 
                         <div class="form-group" data-branching-rule="[realizou_algum_exame_molec] == '1'" style="display:none;">
                             <label class="form-label">Data de Realiza&ccedil;&atilde;o <span class="field-redcap-tag">[data_exame_molecular]</span></label>
-                            <input type="date" id="field-data-mol" data-redcap-field="data_exame_molecular" class="form-control">
+                            <input type="text" id="field-data-mol" data-redcap-field="data_exame_molecular" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10">
                         </div>
 
                         <div class="form-group" data-branching-rule="[realizou_algum_exame_molec] == '1'" style="display:none;">
@@ -1555,11 +1608,6 @@
                                 </div>
 
                                 <div class="form-group" data-branching-rule="[exame_molecular_realizado(6)] == '1'" style="display:none;">
-                                    <label class="form-label">Data Outros Exames <span class="field-redcap-tag">[data_molecular_outros]</span></label>
-                                    <input type="date" id="field-data-molecular-outros" data-redcap-field="data_molecular_outros" class="form-control">
-                                </div>
-
-                                <div class="form-group" data-branching-rule="[exame_molecular_realizado(6)] == '1'" style="display:none;">
                                     <label class="form-label">N&ordm; de Genes Avaliados <span class="field-redcap-tag">[n_genes]</span></label>
                                     <input type="text" id="field-n-genes" data-redcap-field="n_genes" class="form-control" placeholder="ex: 84">
                                 </div>
@@ -1577,11 +1625,6 @@
                                 <div class="form-group" data-branching-rule="[exame_molecular_realizado(7)] == '1'" style="display:none;">
                                     <label class="form-label">Outro Exame de Pesquisa <span class="field-redcap-tag">[outra_pesquisa]</span></label>
                                     <input type="text" id="field-outra-pesquisa" data-redcap-field="outra_pesquisa" class="form-control" placeholder="Nome do protocolo de pesquisa">
-                                </div>
-
-                                <div class="form-group" data-branching-rule="[exame_molecular_realizado(7)] == '1'" style="display:none;">
-                                    <label class="form-label">Data Outra Pesquisa <span class="field-redcap-tag">[data_outra_pesquisa]</span></label>
-                                    <input type="date" id="field-data-outra-pesquisa" data-redcap-field="data_outra_pesquisa" class="form-control">
                                 </div>
 
                                 <div class="form-group" data-branching-rule="[exame_molecular_realizado(7)] == '1'" style="display:none;">
@@ -1658,14 +1701,57 @@
                                 </div>
                             </div>
 
-                            <div class="form-group" style="margin-top:14px;">
-                                <label class="form-label">Observa&ccedil;&otilde;es sobre o Exame Molecular <span class="field-redcap-tag">[obs_molecular]</span></label>
-                                <textarea id="field-obs-molecular" data-redcap-field="obs_molecular" class="form-control" style="height:70px;" placeholder="Laudo gen&eacute;tico, profundidade de cobertura, transcritos de refer&ecirc;ncia, limites t&eacute;cnicos..."></textarea>
-                            </div>
-
                         </div>
                     </div>
 
+                    <!-- SUBGRUPO 2.4: OBSERVA&Ccedil;&Otilde;ES SOBRE O EXAME MOLECULAR (SEMPRE VIS&Iacute;VEL CONFORME REDCAP) -->
+                    <div class="form-subgroup-title" style="margin-top:18px;">
+                        &#128221; 2.4 Observa&ccedil;&otilde;es sobre o Exame Molecular
+                    </div>
+
+                    <div class="form-group" style="margin-top:10px;">
+                        <label class="form-label">Observa&ccedil;&otilde;es sobre o Exame Molecular <span class="field-redcap-tag">[obs_molecular]</span></label>
+                        <textarea id="field-obs-molecular" data-redcap-field="obs_molecular" class="form-control" style="height:75px;" placeholder="Laudo gen&eacute;tico, profundidade de cobertura, transcritos de refer&ecirc;ncia, limites t&eacute;cnicos, justificativas para n&atilde;o realiza&ccedil;&atilde;o ou observa&ccedil;&otilde;es adicionais..."></textarea>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- STATUS DO INSTRUMENTO (REDCAP FORM STATUS) -->
+            <div class="redcap-form-status-panel status-is-2" id="panel-status-tab-molecular">
+                <div class="redcap-status-info">
+                    <div class="redcap-status-title-row">
+                        <span class="redcap-status-header-text">Form Status</span>
+                        <span class="field-redcap-tag">[exame_molecular_complete]</span>
+                    </div>
+                    <div class="redcap-status-controls">
+                        <label class="redcap-status-label-text" for="field-exame_molecular-complete">Complete?</label>
+                        <div class="redcap-status-btn-group" role="group" aria-label="Status de preenchimento">
+                            <button type="button" class="redcap-status-btn" data-val="0" title="0 - Incomplete (Incompleto)" onclick="FormularioClinico.definirStatusComplete('exame_molecular', '0')">
+                                <span class="redcap-status-dot dot-0"></span> Incomplete
+                            </button>
+                            <button type="button" class="redcap-status-btn" data-val="1" title="1 - Unverified (N&atilde;o verificado)" onclick="FormularioClinico.definirStatusComplete('exame_molecular', '1')">
+                                <span class="redcap-status-dot dot-1"></span> Unverified
+                            </button>
+                            <button type="button" class="redcap-status-btn is-active" data-val="2" title="2 - Complete (Completo - Padr&atilde;o)" onclick="FormularioClinico.definirStatusComplete('exame_molecular', '2')">
+                                <span class="redcap-status-dot dot-2"></span> Complete
+                            </button>
+                        </div>
+                        <select class="form-control redcap-status-select-native" id="field-exame_molecular-complete" data-redcap-field="exame_molecular_complete" name="exame_molecular_complete" onchange="FormularioClinico.sincronizarStatusComplete('exame_molecular', this.value)">
+                            <option value="0">0 - Incomplete</option>
+                            <option value="1">1 - Unverified</option>
+                            <option value="2" selected>2 - Complete</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="redcap-status-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="FormularioClinico.salvarRascunho(true)" title="Salvar rascunho dos dados atuais no navegador">
+                        &#128190; Salvar Rascunho
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="FormularioClinico.trocarAba('tab-historia-pessoal')" title="Avan&ccedil;ar para o pr&oacute;ximo instrumento">
+                        Avan&ccedil;ar para Hist&oacute;ria Pessoal &#10132;
+                    </button>
                 </div>
             </div>
 
@@ -1693,6 +1779,13 @@
                         <!-- SUBGRUPO 1: MOTIVO DA CONSULTA -->
                         <div class="form-subgroup-title">
                             &#129658; 3.1 Motivo da Consulta &amp; Encaminhamento AGC
+                        </div>
+
+                        <div class="form-group" style="max-width: 320px;">
+                            <label class="form-label" for="field-data-consulta">
+                                Data da Primeira Consulta na Gen&eacute;tica <span class="field-redcap-tag">[data_primeira_consulta_agc]</span>
+                            </label>
+                            <input type="text" id="field-data-consulta" data-redcap-field="data_primeira_consulta_agc" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10" value="26/10/2026">
                         </div>
 
                         <div class="form-group col-span-2">
@@ -1752,12 +1845,12 @@
 
                         <div class="form-group" data-branching-rule="[vital_status] == '2'" style="display:none;">
                             <label class="form-label">Data de Falecimento <span class="field-redcap-tag">[date_death]</span></label>
-                            <input type="date" id="field-date-death" data-redcap-field="date_death" class="form-control">
+                            <input type="text" id="field-date-death" data-redcap-field="date_death" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10">
                         </div>
 
                         <div class="form-group" data-branching-rule="[vital_status] == '1' || [vital_status] == '3'">
                             <label class="form-label">&Uacute;ltimo Acompanhamento <span class="field-redcap-tag">[last_followup]</span></label>
-                            <input type="date" id="field-last-followup" data-redcap-field="last_followup" class="form-control">
+                            <input type="text" id="field-last-followup" data-redcap-field="last_followup" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10">
                         </div>
 
                         <!-- SUBGRUPO 3: H&Aacute;BITOS DE VIDA & EXPOSI&Ccedil;&Otilde;ES -->
@@ -1771,7 +1864,7 @@
                             </label>
                             <select id="field-tobacco" data-redcap-field="tobacco" class="form-control">
                                 <option value=""></option>
-<option value="1">Nunca</option>
+<option value="1">Nega</option>
 <option value="2">Anteriormente</option>
 <option value="3">Atualmente</option>
 <option value="4">Desconhecido</option>
@@ -1784,7 +1877,7 @@
                             </label>
                             <select id="field-alcohol" data-redcap-field="alcohol" class="form-control">
                                 <option value=""></option>
-<option value="1">Nunca</option>
+<option value="1">Nega</option>
 <option value="2">Anteriormente</option>
 <option value="3">Atualmente</option>
 <option value="4">Desconhecido</option>
@@ -1796,25 +1889,21 @@
                                 Exposi&ccedil;&atilde;o &agrave; Carcin&oacute;genos <span class="field-redcap-tag">[exposi_carci]</span>
                             </label>
                             <div class="checkbox-pills-group">
-                                <label class="checkbox-pill-label">
-                                    <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="1" value="1"> 1, Radia&ccedil;&atilde;o ionizante
-                                </label>
-                                <label class="checkbox-pill-label">
-                                    <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="2" value="2"> 2, Exposi&ccedil;&atilde;o &agrave; Luz UV significativa
-                                </label>
-                                <label class="checkbox-pill-label">
-                                    <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="3" value="3"> 3, Exposi&ccedil;&atilde;o ocupacional
-                                </label>
-                                <label class="checkbox-pill-label">
-                                    <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="4" value="4"> 4, Agentes infecciosos
-                                </label>
-                                <label class="checkbox-pill-label">
-                                    <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="5" value="5"> 5, Outra
-                                </label>
-                                <label class="checkbox-pill-label">
-                                    <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="6" value="6"> 6, Nenhuma conhecida
-                                </label>
-                            </div>
+                                                                    <label class="checkbox-pill-label">
+                                        <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="1" value="1"> 1, Radia&ccedil;&atilde;o ionizante                                    </label>
+                                                                    <label class="checkbox-pill-label">
+                                        <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="2" value="2"> 2, Exposi&ccedil;&atilde;o &agrave; Luz UV significativa                                    </label>
+                                                                    <label class="checkbox-pill-label">
+                                        <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="3" value="3"> 3, Exposi&ccedil;&atilde;o ocupacional                                    </label>
+                                                                    <label class="checkbox-pill-label">
+                                        <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="4" value="4"> 4, Agentes infecciosos                                    </label>
+                                                                    <label class="checkbox-pill-label">
+                                        <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="7" value="7"> 7, Terapia de reposi&ccedil;&atilde;o hormonal / Hormonioterapia                                    </label>
+                                                                    <label class="checkbox-pill-label">
+                                        <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="5" value="5"> 5, Outra                                    </label>
+                                                                    <label class="checkbox-pill-label">
+                                        <input type="checkbox" name="exposi_carci" data-redcap-field="exposi_carci" data-code="6" value="6"> 6, Nenhuma conhecida                                    </label>
+                                                            </div>
                         </div>
 
                         <div class="form-group col-span-2" data-branching-rule="[exposi_carci(5)] == '1'" style="display:none;">
@@ -1824,87 +1913,168 @@
                             <input type="text" id="field-carci-espec" data-redcap-field="carci_espec" class="form-control" placeholder="Especifique o agente carcin&oacute;geno...">
                         </div>
 
-                        <!-- SUBGRUPO 4: SUSPEITAS E DIAGN&Oacute;STICOS CL&Iacute;NICOS / MOLECULARES -->
+                        <!-- SUBGRUPO 4: DIAGN&Oacute;STICOS SINDR&Ocirc;MICOS -->
                         <div class="form-subgroup-title">
-                            &#129516; 3.4 Diagn&oacute;sticos Sindr&ocirc;micos (Confirmados / Suspeitos / Descartados)
+                            &#129516; 3.4 Diagn&oacute;sticos Sindr&ocirc;micos (Confirmados e Suspeitos)
                         </div>
 
-                        <div class="form-grid grid-cols-2">
-                                <div class="form-group">
-                                    <label class="form-label">HBOC <span class="field-redcap-tag">[hboc]</span></label>
-                                    <select id="field-hboc" data-redcap-field="hboc" class="form-control">
-                                        <option value=""></option>
-<option value="1">DX Molecuar</option>
-<option value="2">DX ou supeita cl&iacute;nica</option>
-<option value="3">Descartado</option>
-                                    </select>
+                        <div class="form-group col-span-2">
+                            <div class="dx-sindromicos-grid">
+
+                                <!-- COLUNA 1: DIAGN&Oacute;STICOS CONFIRMADOS -->
+                                <div class="dx-sindromicos-box">
+                                    <div class="dx-box-header-conf">
+                                        <div style="font-size:13px; font-weight:700; color:#15803d; display:flex; align-items:center; gap:6px;">
+                                            <span>&#9989; Diagn&oacute;sticos confirmados</span>
+                                        </div>
+                                        <span class="field-redcap-tag">[dx_conf]</span>
+                                    </div>
+
+                                    <div class="dx-checkbox-list">
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-1" data-redcap-field="dx_conf" data-code="1" value="1">
+                                                <span>HBOC</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-2" data-redcap-field="dx_conf" data-code="2" value="2">
+                                                <span>Li-Fraumeni</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-3" data-redcap-field="dx_conf" data-code="3" value="3">
+                                                <span>Lynch</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-4" data-redcap-field="dx_conf" data-code="4" value="4">
+                                                <span>Polipose adenomatosa</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-5" data-redcap-field="dx_conf" data-code="5" value="5">
+                                                <span>Polipose Juvenil</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-6" data-redcap-field="dx_conf" data-code="6" value="6">
+                                                <span>Sindrome de Peutz Jegherz</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-7" data-redcap-field="dx_conf" data-code="7" value="7">
+                                                <span>S&iacute;ndrome de Cownden / PTEN</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-8" data-redcap-field="dx_conf" data-code="8" value="8">
+                                                <span>VHL</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-9" data-redcap-field="dx_conf" data-code="9" value="9">
+                                                <span>S&iacute;ndrome de Gorlin-Goltz</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-10" data-redcap-field="dx_conf" data-code="10" value="10">
+                                                <span>Neoplasia End&oacute;crina M&uacute;ltipla</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-11" data-redcap-field="dx_conf" data-code="11" value="11">
+                                                <span>S&iacute;ndrome de Brooke-Spiegler</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-12" data-redcap-field="dx_conf" data-code="12" value="12">
+                                                <span>C&acirc;ncer renal heredit&aacute;rio</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-13" data-redcap-field="dx_conf" data-code="13" value="13">
+                                                <span>Paraganglioma/feocromocitoma</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-conf-20" data-redcap-field="dx_conf" data-code="20" value="20">
+                                                <span>Outra</span>
+                                            </label>
+                                        
+                                        <div class="form-group" data-branching-rule="[dx_conf(20)] = 1" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color);">
+                                            <label class="form-label" for="field-outros-dx-espec" style="font-size:12px; font-weight:700;">
+                                                Se Outro especifique: <span class="field-redcap-tag">[outros_dx_espec]</span>
+                                            </label>
+                                            <input type="text" id="field-outros-dx-espec" data-redcap-field="outros_dx_espec" name="outros_dx_espec" class="form-control" placeholder="Especifique o diagn&oacute;stico confirmado (cl&iacute;nico ou molecular)...">
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label class="form-label">LYNCH <span class="field-redcap-tag">[lynch]</span></label>
-                                    <select id="field-lynch" data-redcap-field="lynch" class="form-control">
-                                        <option value=""></option>
-<option value="1">DX Molecuar</option>
-<option value="2">DX ou supeita cl&iacute;nica</option>
-<option value="3">Descartado</option>
-                                    </select>
+                                <!-- COLUNA 2: DIAGN&Oacute;STICOS SUSPEITOS -->
+                                <div class="dx-sindromicos-box">
+                                    <div class="dx-box-header-sus">
+                                        <div style="font-size:13px; font-weight:700; color:#a16207; display:flex; align-items:center; gap:6px;">
+                                            <span>&#128993; Diagn&oacute;sticos suspeitos</span>
+                                        </div>
+                                        <span class="field-redcap-tag">[dx_sus]</span>
+                                    </div>
+
+                                    <div class="dx-checkbox-list">
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-1" data-redcap-field="dx_sus" data-code="1" value="1">
+                                                <span>HBOC</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-2" data-redcap-field="dx_sus" data-code="2" value="2">
+                                                <span>Li-Fraumeni</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-3" data-redcap-field="dx_sus" data-code="3" value="3">
+                                                <span>Lynch</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-4" data-redcap-field="dx_sus" data-code="4" value="4">
+                                                <span>Polipose adenomatosa</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-5" data-redcap-field="dx_sus" data-code="5" value="5">
+                                                <span>Polipose Juvenil</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-6" data-redcap-field="dx_sus" data-code="6" value="6">
+                                                <span>Sindrome de Peutz Jegherz</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-7" data-redcap-field="dx_sus" data-code="7" value="7">
+                                                <span>S&iacute;ndrome de Cownden / PTEN</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-8" data-redcap-field="dx_sus" data-code="8" value="8">
+                                                <span>VHL</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-9" data-redcap-field="dx_sus" data-code="9" value="9">
+                                                <span>S&iacute;ndrome de Gorlin-Goltz</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-10" data-redcap-field="dx_sus" data-code="10" value="10">
+                                                <span>Neoplasia End&oacute;crina M&uacute;ltipla</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-11" data-redcap-field="dx_sus" data-code="11" value="11">
+                                                <span>S&iacute;ndrome de Brooke-Spiegler</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-12" data-redcap-field="dx_sus" data-code="12" value="12">
+                                                <span>C&acirc;ncer renal heredit&aacute;rio</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-13" data-redcap-field="dx_sus" data-code="13" value="13">
+                                                <span>Paraganglioma/feocromocitoma</span>
+                                            </label>
+                                                                                    <label class="dx-checkbox-item">
+                                                <input type="checkbox" id="field-dx-sus-20" data-redcap-field="dx_sus" data-code="20" value="20">
+                                                <span>Outra</span>
+                                            </label>
+                                        
+                                        <div class="form-group" data-branching-rule="[dx_sus(20)] = 1" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color);">
+                                            <label class="form-label" for="field-outros-dx-espec-sus" style="font-size:12px; font-weight:700;">
+                                                Se Outro especifique: <span class="field-redcap-tag">[outros_dx_espec_sus]</span>
+                                            </label>
+                                            <input type="text" id="field-outros-dx-espec-sus" data-redcap-field="outros_dx_espec_sus" name="outros_dx_espec_sus" class="form-control" placeholder="Especifique o diagn&oacute;stico suspeito...">
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label class="form-label">Li-Fraumeni <span class="field-redcap-tag">[li_fraumeni]</span></label>
-                                    <select id="field-li-fraumeni" data-redcap-field="li_fraumeni" class="form-control">
-                                        <option value=""></option>
-<option value="1">DX Molecuar</option>
-<option value="2">DX ou supeita cl&iacute;nica</option>
-<option value="3">Descartado</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="form-label">Cowden / PTEN <span class="field-redcap-tag">[cownden_pten]</span></label>
-                                    <select id="field-cownden-pten" data-redcap-field="cownden_pten" class="form-control">
-                                        <option value=""></option>
-<option value="1">DX Molecuar</option>
-<option value="2">DX ou supeita cl&iacute;nica</option>
-<option value="3">Descartado</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="form-label">VHL <span class="field-redcap-tag">[vhl]</span></label>
-                                    <select id="field-vhl" data-redcap-field="vhl" class="form-control">
-                                        <option value=""></option>
-<option value="1">DX Molecuar</option>
-<option value="2">DX ou supeita cl&iacute;nica</option>
-<option value="3">Descartado</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="form-label">Polipose Heredit&aacute;ria <span class="field-redcap-tag">[polipose]</span></label>
-                                    <select id="field-polipose" data-redcap-field="polipose" class="form-control">
-                                        <option value=""></option>
-<option value="1">DX Molecuar</option>
-<option value="2">DX ou supeita cl&iacute;nica</option>
-<option value="3">Descartado</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="form-label">OUTROS Diagn&oacute;sticos <span class="field-redcap-tag">[outros_diagnos]</span></label>
-                                    <select id="field-outros-diagnos" data-redcap-field="outros_diagnos" class="form-control">
-                                        <option value=""></option>
-<option value="1">DX Molecuar</option>
-<option value="2">DX ou supeita cl&iacute;nica</option>
-<option value="3">Descartado</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group" data-branching-rule="[outros_diagnos] == '1' || [outros_diagnos] == '2'" style="display:none;">
-                                    <label class="form-label">Qual o Diagn&oacute;stico Suspeito ou Confirmado? <span class="field-redcap-tag">[outros_dx_espec]</span></label>
-                                    <input type="text" id="field-outros-dx-espec" data-redcap-field="outros_dx_espec" class="form-control" placeholder="Especifique a hip&oacute;tese sindr&ocirc;mica...">
-                                </div>
                             </div>
+                        </div>
 
                         <!-- SUBGRUPO 5: INFORMA&Ccedil;&Otilde;ES ADICIONAIS -->
                         <div class="form-subgroup-title">
@@ -2074,15 +2244,15 @@
                                     <input type="number" id="field-n-primario-1" data-redcap-field="n_primario_1" class="form-control" placeholder="1">
                                     <div style="display:flex; flex-direction:column; gap:4px; margin-top:6px; font-size:11px;">
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_1_desc" value="1">
+                                            <input type="checkbox" id="field-n-primario-1-desc" name="n_primario_1_desc___1" data-field-name="n_primario_1_desc___1" data-redcap-field="n_primario_1_desc" data-code="1" value="1">
                                             <span>N&ordm; desconhecido <span class="field-redcap-tag">[n_primario_1_desc]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_1_nsa" value="1">
+                                            <input type="checkbox" id="field-n-primario-1-nsa" name="n_primario_1_nsa___1" data-field-name="n_primario_1_nsa___1" data-redcap-field="n_primario_1_nsa" data-code="1" value="1">
                                             <span>N&atilde;o se aplica numerar <span class="field-redcap-tag">[n_primario_1_nsa]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_1_inc" value="1">
+                                            <input type="checkbox" id="field-n-primario-1-inc" name="n_primario_1_inc___1" data-field-name="n_primario_1_inc___1" data-redcap-field="n_primario_1_inc" data-code="1" value="1">
                                             <span>N&ordm; incont&aacute;vel de les&otilde;es <span class="field-redcap-tag">[n_primario_1_inc]</span></span>
                                         </label>
                                     </div>
@@ -2233,15 +2403,15 @@
                                     <input type="number" id="field-n-primario-2" data-redcap-field="n_primario_2" class="form-control" placeholder="1">
                                     <div style="display:flex; flex-direction:column; gap:4px; margin-top:6px; font-size:11px;">
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_2_desc" value="1">
+                                            <input type="checkbox" id="field-n-primario-2-desc" name="n_primario_2_desc___1" data-field-name="n_primario_2_desc___1" data-redcap-field="n_primario_2_desc" data-code="1" value="1">
                                             <span>N&ordm; desconhecido <span class="field-redcap-tag">[n_primario_2_desc]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_2_nsa" value="1">
+                                            <input type="checkbox" id="field-n-primario-2-nsa" name="n_primario_2_nsa___1" data-field-name="n_primario_2_nsa___1" data-redcap-field="n_primario_2_nsa" data-code="1" value="1">
                                             <span>N&atilde;o se aplica numerar <span class="field-redcap-tag">[n_primario_2_nsa]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_2_inc" value="1">
+                                            <input type="checkbox" id="field-n-primario-2-inc" name="n_primario_2_inc___1" data-field-name="n_primario_2_inc___1" data-redcap-field="n_primario_2_inc" data-code="1" value="1">
                                             <span>N&ordm; incont&aacute;vel de les&otilde;es <span class="field-redcap-tag">[n_primario_2_inc]</span></span>
                                         </label>
                                     </div>
@@ -2392,15 +2562,15 @@
                                     <input type="number" id="field-n-primario-3" data-redcap-field="n_primario_3" class="form-control" placeholder="1">
                                     <div style="display:flex; flex-direction:column; gap:4px; margin-top:6px; font-size:11px;">
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_3_desc" value="1">
+                                            <input type="checkbox" id="field-n-primario-3-desc" name="n_primario_3_desc___1" data-field-name="n_primario_3_desc___1" data-redcap-field="n_primario_3_desc" data-code="1" value="1">
                                             <span>N&ordm; desconhecido <span class="field-redcap-tag">[n_primario_3_desc]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_3_nsa" value="1">
+                                            <input type="checkbox" id="field-n-primario-3-nsa" name="n_primario_3_nsa___1" data-field-name="n_primario_3_nsa___1" data-redcap-field="n_primario_3_nsa" data-code="1" value="1">
                                             <span>N&atilde;o se aplica numerar <span class="field-redcap-tag">[n_primario_3_nsa]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_3_inc" value="1">
+                                            <input type="checkbox" id="field-n-primario-3-inc" name="n_primario_3_inc___1" data-field-name="n_primario_3_inc___1" data-redcap-field="n_primario_3_inc" data-code="1" value="1">
                                             <span>N&ordm; incont&aacute;vel de les&otilde;es <span class="field-redcap-tag">[n_primario_3_inc]</span></span>
                                         </label>
                                     </div>
@@ -2551,15 +2721,15 @@
                                     <input type="number" id="field-n-primario-4" data-redcap-field="n_primario_4" class="form-control" placeholder="1">
                                     <div style="display:flex; flex-direction:column; gap:4px; margin-top:6px; font-size:11px;">
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_4_desc" value="1">
+                                            <input type="checkbox" id="field-n-primario-4-desc" name="n_primario_4_desc___1" data-field-name="n_primario_4_desc___1" data-redcap-field="n_primario_4_desc" data-code="1" value="1">
                                             <span>N&ordm; desconhecido <span class="field-redcap-tag">[n_primario_4_desc]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_4_nsa" value="1">
+                                            <input type="checkbox" id="field-n-primario-4-nsa" name="n_primario_4_nsa___1" data-field-name="n_primario_4_nsa___1" data-redcap-field="n_primario_4_nsa" data-code="1" value="1">
                                             <span>N&atilde;o se aplica numerar <span class="field-redcap-tag">[n_primario_4_nsa]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_4_inc" value="1">
+                                            <input type="checkbox" id="field-n-primario-4-inc" name="n_primario_4_inc___1" data-field-name="n_primario_4_inc___1" data-redcap-field="n_primario_4_inc" data-code="1" value="1">
                                             <span>N&ordm; incont&aacute;vel de les&otilde;es <span class="field-redcap-tag">[n_primario_4_inc]</span></span>
                                         </label>
                                     </div>
@@ -2710,15 +2880,15 @@
                                     <input type="number" id="field-n-primario-5" data-redcap-field="n_primario_5" class="form-control" placeholder="1">
                                     <div style="display:flex; flex-direction:column; gap:4px; margin-top:6px; font-size:11px;">
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_5_desc" value="1">
+                                            <input type="checkbox" id="field-n-primario-5-desc" name="n_primario_5_desc___1" data-field-name="n_primario_5_desc___1" data-redcap-field="n_primario_5_desc" data-code="1" value="1">
                                             <span>N&ordm; desconhecido <span class="field-redcap-tag">[n_primario_5_desc]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_5_nsa" value="1">
+                                            <input type="checkbox" id="field-n-primario-5-nsa" name="n_primario_5_nsa___1" data-field-name="n_primario_5_nsa___1" data-redcap-field="n_primario_5_nsa" data-code="1" value="1">
                                             <span>N&atilde;o se aplica numerar <span class="field-redcap-tag">[n_primario_5_nsa]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_5_inc" value="1">
+                                            <input type="checkbox" id="field-n-primario-5-inc" name="n_primario_5_inc___1" data-field-name="n_primario_5_inc___1" data-redcap-field="n_primario_5_inc" data-code="1" value="1">
                                             <span>N&ordm; incont&aacute;vel de les&otilde;es <span class="field-redcap-tag">[n_primario_5_inc]</span></span>
                                         </label>
                                     </div>
@@ -2869,15 +3039,15 @@
                                     <input type="number" id="field-n-primario-6" data-redcap-field="n_primario_6" class="form-control" placeholder="1">
                                     <div style="display:flex; flex-direction:column; gap:4px; margin-top:6px; font-size:11px;">
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_6_desc" value="1">
+                                            <input type="checkbox" id="field-n-primario-6-desc" name="n_primario_6_desc___1" data-field-name="n_primario_6_desc___1" data-redcap-field="n_primario_6_desc" data-code="1" value="1">
                                             <span>N&ordm; desconhecido <span class="field-redcap-tag">[n_primario_6_desc]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_6_nsa" value="1">
+                                            <input type="checkbox" id="field-n-primario-6-nsa" name="n_primario_6_nsa___1" data-field-name="n_primario_6_nsa___1" data-redcap-field="n_primario_6_nsa" data-code="1" value="1">
                                             <span>N&atilde;o se aplica numerar <span class="field-redcap-tag">[n_primario_6_nsa]</span></span>
                                         </label>
                                         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                                            <input type="checkbox" data-redcap-field="n_primario_6_inc" value="1">
+                                            <input type="checkbox" id="field-n-primario-6-inc" name="n_primario_6_inc___1" data-field-name="n_primario_6_inc___1" data-redcap-field="n_primario_6_inc" data-code="1" value="1">
                                             <span>N&ordm; incont&aacute;vel de les&otilde;es <span class="field-redcap-tag">[n_primario_6_inc]</span></span>
                                         </label>
                                     </div>
@@ -2961,71 +3131,6 @@
 <label class="redcap-matrix-radio-label" for="radio-ish_her2-2"><input type="radio" id="radio-ish_her2-2" name="ish_her2" data-redcap-field="ish_her2" value="2" data-val="2"> <span>N&atilde;o Amplificado</span></label>
 <label class="redcap-matrix-radio-label" for="radio-ish_her2-3"><input type="radio" id="radio-ish_her2-3" name="ish_her2" data-redcap-field="ish_her2" value="3" data-val="3"> <span>Desconhecido</span></label>
 </div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('ish_her2')">reset</button></div></div></div>                            </div>
-
-                            <!-- 3. Estadiamento -->
-                            <div class="redcap-matrix-section-title">Estadiamento</div>
-                            <div class="redcap-matrix-grid redcap-matrix-grid-4">
-                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento T</span> <span class="field-redcap-tag">[bc_t]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_t-1"><input type="radio" id="radio-bc_t-1" name="bc_t" data-redcap-field="bc_t" value="1" data-val="1"> <span>Tis</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t-2"><input type="radio" id="radio-bc_t-2" name="bc_t" data-redcap-field="bc_t" value="2" data-val="2"> <span>T1</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t-3"><input type="radio" id="radio-bc_t-3" name="bc_t" data-redcap-field="bc_t" value="3" data-val="3"> <span>T2</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t-4"><input type="radio" id="radio-bc_t-4" name="bc_t" data-redcap-field="bc_t" value="4" data-val="4"> <span>T3</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t-5"><input type="radio" id="radio-bc_t-5" name="bc_t" data-redcap-field="bc_t" value="5" data-val="5"> <span>T4</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t-6"><input type="radio" id="radio-bc_t-6" name="bc_t" data-redcap-field="bc_t" value="6" data-val="6"> <span>Tx</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t-7"><input type="radio" id="radio-bc_t-7" name="bc_t" data-redcap-field="bc_t" value="7" data-val="7"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_t')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento N</span> <span class="field-redcap-tag">[bc_n]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_n-1"><input type="radio" id="radio-bc_n-1" name="bc_n" data-redcap-field="bc_n" value="1" data-val="1"> <span>N0</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n-2"><input type="radio" id="radio-bc_n-2" name="bc_n" data-redcap-field="bc_n" value="2" data-val="2"> <span>N1</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n-3"><input type="radio" id="radio-bc_n-3" name="bc_n" data-redcap-field="bc_n" value="3" data-val="3"> <span>N2</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n-4"><input type="radio" id="radio-bc_n-4" name="bc_n" data-redcap-field="bc_n" value="4" data-val="4"> <span>N3</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n-5"><input type="radio" id="radio-bc_n-5" name="bc_n" data-redcap-field="bc_n" value="5" data-val="5"> <span>Nx</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n-6"><input type="radio" id="radio-bc_n-6" name="bc_n" data-redcap-field="bc_n" value="6" data-val="6"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_n')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento M</span> <span class="field-redcap-tag">[bc_m]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_m-1"><input type="radio" id="radio-bc_m-1" name="bc_m" data-redcap-field="bc_m" value="1" data-val="1"> <span>M0</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_m-2"><input type="radio" id="radio-bc_m-2" name="bc_m" data-redcap-field="bc_m" value="2" data-val="2"> <span>M1</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_m-3"><input type="radio" id="radio-bc_m-3" name="bc_m" data-redcap-field="bc_m" value="3" data-val="3"> <span>Mx</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_m-4"><input type="radio" id="radio-bc_m-4" name="bc_m" data-redcap-field="bc_m" value="4" data-val="4"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_m')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento cl&iacute;nico</span> <span class="field-redcap-tag">[bc_overall_stage]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_overall_stage-1"><input type="radio" id="radio-bc_overall_stage-1" name="bc_overall_stage" data-redcap-field="bc_overall_stage" value="1" data-val="1"> <span>0</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage-2"><input type="radio" id="radio-bc_overall_stage-2" name="bc_overall_stage" data-redcap-field="bc_overall_stage" value="2" data-val="2"> <span>I</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage-3"><input type="radio" id="radio-bc_overall_stage-3" name="bc_overall_stage" data-redcap-field="bc_overall_stage" value="3" data-val="3"> <span>IIA</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage-4"><input type="radio" id="radio-bc_overall_stage-4" name="bc_overall_stage" data-redcap-field="bc_overall_stage" value="4" data-val="4"> <span>IIB</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage-5"><input type="radio" id="radio-bc_overall_stage-5" name="bc_overall_stage" data-redcap-field="bc_overall_stage" value="5" data-val="5"> <span>IIIA</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage-6"><input type="radio" id="radio-bc_overall_stage-6" name="bc_overall_stage" data-redcap-field="bc_overall_stage" value="6" data-val="6"> <span>IIIB</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage-7"><input type="radio" id="radio-bc_overall_stage-7" name="bc_overall_stage" data-redcap-field="bc_overall_stage" value="7" data-val="7"> <span>IIIC</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage-8"><input type="radio" id="radio-bc_overall_stage-8" name="bc_overall_stage" data-redcap-field="bc_overall_stage" value="8" data-val="8"> <span>IV</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage-9"><input type="radio" id="radio-bc_overall_stage-9" name="bc_overall_stage" data-redcap-field="bc_overall_stage" value="9" data-val="9"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_overall_stage')">reset</button></div></div>                            </div>
-
-                            <!-- 4. Tratamentos #1 -->
-                            <div class="redcap-matrix-section-title">Tratamentos #1</div>
-                            <div class="redcap-matrix-grid redcap-matrix-grid-4">
-                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Cirurgia</span> <span class="field-redcap-tag">[bc_surgery]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_surgery-1"><input type="radio" id="radio-bc_surgery-1" name="bc_surgery" data-redcap-field="bc_surgery" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_surgery-2"><input type="radio" id="radio-bc_surgery-2" name="bc_surgery" data-redcap-field="bc_surgery" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_surgery-3"><input type="radio" id="radio-bc_surgery-3" name="bc_surgery" data-redcap-field="bc_surgery" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_surgery')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Esvaziamento axilar</span> <span class="field-redcap-tag">[bc_axillary]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_axillary-1"><input type="radio" id="radio-bc_axillary-1" name="bc_axillary" data-redcap-field="bc_axillary" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_axillary-2"><input type="radio" id="radio-bc_axillary-2" name="bc_axillary" data-redcap-field="bc_axillary" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_axillary-3"><input type="radio" id="radio-bc_axillary-3" name="bc_axillary" data-redcap-field="bc_axillary" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_axillary')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Radioterapia</span> <span class="field-redcap-tag">[bc_radiotherapy]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_radiotherapy-1"><input type="radio" id="radio-bc_radiotherapy-1" name="bc_radiotherapy" data-redcap-field="bc_radiotherapy" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_radiotherapy-2"><input type="radio" id="radio-bc_radiotherapy-2" name="bc_radiotherapy" data-redcap-field="bc_radiotherapy" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_radiotherapy-3"><input type="radio" id="radio-bc_radiotherapy-3" name="bc_radiotherapy" data-redcap-field="bc_radiotherapy" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_radiotherapy')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Inibidor de PARP</span> <span class="field-redcap-tag">[parb_ini_1]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-parb_ini_1-1"><input type="radio" id="radio-parb_ini_1-1" name="parb_ini_1" data-redcap-field="parb_ini_1" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-parb_ini_1-2"><input type="radio" id="radio-parb_ini_1-2" name="parb_ini_1" data-redcap-field="parb_ini_1" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-parb_ini_1-3"><input type="radio" id="radio-parb_ini_1-3" name="parb_ini_1" data-redcap-field="parb_ini_1" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('parb_ini_1')">reset</button></div></div>                            </div>
-
-                            <!-- 5. Tratamentos #2 -->
-                            <div class="redcap-matrix-section-title">Tratamentos #2</div>
-                            <div class="redcap-matrix-grid redcap-matrix-grid-4">
-                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>QT neoadjuvante</span> <span class="field-redcap-tag">[bc_neoadj_chemo]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_neoadj_chemo-1"><input type="radio" id="radio-bc_neoadj_chemo-1" name="bc_neoadj_chemo" data-redcap-field="bc_neoadj_chemo" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_chemo-2"><input type="radio" id="radio-bc_neoadj_chemo-2" name="bc_neoadj_chemo" data-redcap-field="bc_neoadj_chemo" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_chemo-3"><input type="radio" id="radio-bc_neoadj_chemo-3" name="bc_neoadj_chemo" data-redcap-field="bc_neoadj_chemo" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_neoadj_chemo')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Hormonioterapia neoadjuvante</span> <span class="field-redcap-tag">[bc_neoadj_horm]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_neoadj_horm-1"><input type="radio" id="radio-bc_neoadj_horm-1" name="bc_neoadj_horm" data-redcap-field="bc_neoadj_horm" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_horm-2"><input type="radio" id="radio-bc_neoadj_horm-2" name="bc_neoadj_horm" data-redcap-field="bc_neoadj_horm" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_horm-3"><input type="radio" id="radio-bc_neoadj_horm-3" name="bc_neoadj_horm" data-redcap-field="bc_neoadj_horm" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_neoadj_horm')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Quimioterapia adjuvante</span> <span class="field-redcap-tag">[bc_adj_chemo]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_adj_chemo-1"><input type="radio" id="radio-bc_adj_chemo-1" name="bc_adj_chemo" data-redcap-field="bc_adj_chemo" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_chemo-2"><input type="radio" id="radio-bc_adj_chemo-2" name="bc_adj_chemo" data-redcap-field="bc_adj_chemo" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_chemo-3"><input type="radio" id="radio-bc_adj_chemo-3" name="bc_adj_chemo" data-redcap-field="bc_adj_chemo" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_adj_chemo')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Hormonioterapia adjuvante</span> <span class="field-redcap-tag">[bc_adj_horm]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_adj_horm-1"><input type="radio" id="radio-bc_adj_horm-1" name="bc_adj_horm" data-redcap-field="bc_adj_horm" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_horm-2"><input type="radio" id="radio-bc_adj_horm-2" name="bc_adj_horm" data-redcap-field="bc_adj_horm" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_horm-3"><input type="radio" id="radio-bc_adj_horm-3" name="bc_adj_horm" data-redcap-field="bc_adj_horm" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_adj_horm')">reset</button></div></div>                            </div>
                         </div>
                                                 <div class="redcap-matrix-block" id="card-mama-2" style="display:none;" data-branching-rule="[n_mama] &gt;= '2'">
                             <div class="redcap-matrix-main-title">
@@ -3065,71 +3170,6 @@
 <label class="redcap-matrix-radio-label" for="radio-ish_her3-2"><input type="radio" id="radio-ish_her3-2" name="ish_her3" data-redcap-field="ish_her3" value="2" data-val="2"> <span>N&atilde;o Amplificado</span></label>
 <label class="redcap-matrix-radio-label" for="radio-ish_her3-3"><input type="radio" id="radio-ish_her3-3" name="ish_her3" data-redcap-field="ish_her3" value="3" data-val="3"> <span>Desconhecido</span></label>
 </div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('ish_her3')">reset</button></div></div></div>                            </div>
-
-                            <!-- 3. Estadiamento -->
-                            <div class="redcap-matrix-section-title">Estadiamento</div>
-                            <div class="redcap-matrix-grid redcap-matrix-grid-4">
-                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento T</span> <span class="field-redcap-tag">[bc_t_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_t_2-1"><input type="radio" id="radio-bc_t_2-1" name="bc_t_2" data-redcap-field="bc_t_2" value="1" data-val="1"> <span>Tis</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_2-2"><input type="radio" id="radio-bc_t_2-2" name="bc_t_2" data-redcap-field="bc_t_2" value="2" data-val="2"> <span>T1</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_2-3"><input type="radio" id="radio-bc_t_2-3" name="bc_t_2" data-redcap-field="bc_t_2" value="3" data-val="3"> <span>T2</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_2-4"><input type="radio" id="radio-bc_t_2-4" name="bc_t_2" data-redcap-field="bc_t_2" value="4" data-val="4"> <span>T3</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_2-5"><input type="radio" id="radio-bc_t_2-5" name="bc_t_2" data-redcap-field="bc_t_2" value="5" data-val="5"> <span>T4</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_2-6"><input type="radio" id="radio-bc_t_2-6" name="bc_t_2" data-redcap-field="bc_t_2" value="6" data-val="6"> <span>Tx</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_2-7"><input type="radio" id="radio-bc_t_2-7" name="bc_t_2" data-redcap-field="bc_t_2" value="7" data-val="7"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_t_2')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento N</span> <span class="field-redcap-tag">[bc_n_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_n_2-1"><input type="radio" id="radio-bc_n_2-1" name="bc_n_2" data-redcap-field="bc_n_2" value="1" data-val="1"> <span>N0</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n_2-2"><input type="radio" id="radio-bc_n_2-2" name="bc_n_2" data-redcap-field="bc_n_2" value="2" data-val="2"> <span>N1</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n_2-3"><input type="radio" id="radio-bc_n_2-3" name="bc_n_2" data-redcap-field="bc_n_2" value="3" data-val="3"> <span>N2</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n_2-4"><input type="radio" id="radio-bc_n_2-4" name="bc_n_2" data-redcap-field="bc_n_2" value="4" data-val="4"> <span>N3</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n_2-5"><input type="radio" id="radio-bc_n_2-5" name="bc_n_2" data-redcap-field="bc_n_2" value="5" data-val="5"> <span>Nx</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n_2-6"><input type="radio" id="radio-bc_n_2-6" name="bc_n_2" data-redcap-field="bc_n_2" value="6" data-val="6"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_n_2')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento M</span> <span class="field-redcap-tag">[bc_m_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_m_2-1"><input type="radio" id="radio-bc_m_2-1" name="bc_m_2" data-redcap-field="bc_m_2" value="1" data-val="1"> <span>M0</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_m_2-2"><input type="radio" id="radio-bc_m_2-2" name="bc_m_2" data-redcap-field="bc_m_2" value="2" data-val="2"> <span>M1</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_m_2-3"><input type="radio" id="radio-bc_m_2-3" name="bc_m_2" data-redcap-field="bc_m_2" value="3" data-val="3"> <span>Mx</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_m_2-4"><input type="radio" id="radio-bc_m_2-4" name="bc_m_2" data-redcap-field="bc_m_2" value="4" data-val="4"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_m_2')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento cl&iacute;nico</span> <span class="field-redcap-tag">[bc_overall_stage_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_2-1"><input type="radio" id="radio-bc_overall_stage_2-1" name="bc_overall_stage_2" data-redcap-field="bc_overall_stage_2" value="1" data-val="1"> <span>0</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_2-2"><input type="radio" id="radio-bc_overall_stage_2-2" name="bc_overall_stage_2" data-redcap-field="bc_overall_stage_2" value="2" data-val="2"> <span>I</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_2-3"><input type="radio" id="radio-bc_overall_stage_2-3" name="bc_overall_stage_2" data-redcap-field="bc_overall_stage_2" value="3" data-val="3"> <span>IIA</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_2-4"><input type="radio" id="radio-bc_overall_stage_2-4" name="bc_overall_stage_2" data-redcap-field="bc_overall_stage_2" value="4" data-val="4"> <span>IIB</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_2-5"><input type="radio" id="radio-bc_overall_stage_2-5" name="bc_overall_stage_2" data-redcap-field="bc_overall_stage_2" value="5" data-val="5"> <span>IIIA</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_2-6"><input type="radio" id="radio-bc_overall_stage_2-6" name="bc_overall_stage_2" data-redcap-field="bc_overall_stage_2" value="6" data-val="6"> <span>IIIB</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_2-7"><input type="radio" id="radio-bc_overall_stage_2-7" name="bc_overall_stage_2" data-redcap-field="bc_overall_stage_2" value="7" data-val="7"> <span>IIIC</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_2-8"><input type="radio" id="radio-bc_overall_stage_2-8" name="bc_overall_stage_2" data-redcap-field="bc_overall_stage_2" value="8" data-val="8"> <span>IV</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_2-9"><input type="radio" id="radio-bc_overall_stage_2-9" name="bc_overall_stage_2" data-redcap-field="bc_overall_stage_2" value="9" data-val="9"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_overall_stage_2')">reset</button></div></div>                            </div>
-
-                            <!-- 4. Tratamentos #1 -->
-                            <div class="redcap-matrix-section-title">Tratamentos #1</div>
-                            <div class="redcap-matrix-grid redcap-matrix-grid-4">
-                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Cirurgia</span> <span class="field-redcap-tag">[bc_surgery_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_surgery_2-1"><input type="radio" id="radio-bc_surgery_2-1" name="bc_surgery_2" data-redcap-field="bc_surgery_2" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_surgery_2-2"><input type="radio" id="radio-bc_surgery_2-2" name="bc_surgery_2" data-redcap-field="bc_surgery_2" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_surgery_2-3"><input type="radio" id="radio-bc_surgery_2-3" name="bc_surgery_2" data-redcap-field="bc_surgery_2" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_surgery_2')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Esvaziamento axilar</span> <span class="field-redcap-tag">[bc_axillary_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_axillary_2-1"><input type="radio" id="radio-bc_axillary_2-1" name="bc_axillary_2" data-redcap-field="bc_axillary_2" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_axillary_2-2"><input type="radio" id="radio-bc_axillary_2-2" name="bc_axillary_2" data-redcap-field="bc_axillary_2" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_axillary_2-3"><input type="radio" id="radio-bc_axillary_2-3" name="bc_axillary_2" data-redcap-field="bc_axillary_2" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_axillary_2')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Radioterapia</span> <span class="field-redcap-tag">[bc_radiotherapy_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_radiotherapy_2-1"><input type="radio" id="radio-bc_radiotherapy_2-1" name="bc_radiotherapy_2" data-redcap-field="bc_radiotherapy_2" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_radiotherapy_2-2"><input type="radio" id="radio-bc_radiotherapy_2-2" name="bc_radiotherapy_2" data-redcap-field="bc_radiotherapy_2" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_radiotherapy_2-3"><input type="radio" id="radio-bc_radiotherapy_2-3" name="bc_radiotherapy_2" data-redcap-field="bc_radiotherapy_2" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_radiotherapy_2')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Inibidor de PARP</span> <span class="field-redcap-tag">[parb_ini_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-parb_ini_2-1"><input type="radio" id="radio-parb_ini_2-1" name="parb_ini_2" data-redcap-field="parb_ini_2" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-parb_ini_2-2"><input type="radio" id="radio-parb_ini_2-2" name="parb_ini_2" data-redcap-field="parb_ini_2" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-parb_ini_2-3"><input type="radio" id="radio-parb_ini_2-3" name="parb_ini_2" data-redcap-field="parb_ini_2" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('parb_ini_2')">reset</button></div></div>                            </div>
-
-                            <!-- 5. Tratamentos #2 -->
-                            <div class="redcap-matrix-section-title">Tratamentos #2</div>
-                            <div class="redcap-matrix-grid redcap-matrix-grid-4">
-                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>QT neoadjuvante</span> <span class="field-redcap-tag">[bc_neoadj_chemo_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_neoadj_chemo_2-1"><input type="radio" id="radio-bc_neoadj_chemo_2-1" name="bc_neoadj_chemo_2" data-redcap-field="bc_neoadj_chemo_2" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_chemo_2-2"><input type="radio" id="radio-bc_neoadj_chemo_2-2" name="bc_neoadj_chemo_2" data-redcap-field="bc_neoadj_chemo_2" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_chemo_2-3"><input type="radio" id="radio-bc_neoadj_chemo_2-3" name="bc_neoadj_chemo_2" data-redcap-field="bc_neoadj_chemo_2" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_neoadj_chemo_2')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Hormonioterapia neoadjuvante</span> <span class="field-redcap-tag">[bc_neoadj_horm_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_neoadj_horm_2-1"><input type="radio" id="radio-bc_neoadj_horm_2-1" name="bc_neoadj_horm_2" data-redcap-field="bc_neoadj_horm_2" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_horm_2-2"><input type="radio" id="radio-bc_neoadj_horm_2-2" name="bc_neoadj_horm_2" data-redcap-field="bc_neoadj_horm_2" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_horm_2-3"><input type="radio" id="radio-bc_neoadj_horm_2-3" name="bc_neoadj_horm_2" data-redcap-field="bc_neoadj_horm_2" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_neoadj_horm_2')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Quimioterapia adjuvante</span> <span class="field-redcap-tag">[bc_adj_chemo_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_adj_chemo_2-1"><input type="radio" id="radio-bc_adj_chemo_2-1" name="bc_adj_chemo_2" data-redcap-field="bc_adj_chemo_2" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_chemo_2-2"><input type="radio" id="radio-bc_adj_chemo_2-2" name="bc_adj_chemo_2" data-redcap-field="bc_adj_chemo_2" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_chemo_2-3"><input type="radio" id="radio-bc_adj_chemo_2-3" name="bc_adj_chemo_2" data-redcap-field="bc_adj_chemo_2" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_adj_chemo_2')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Hormonioterapia adjuvante</span> <span class="field-redcap-tag">[bc_adj_horm_2]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_adj_horm_2-1"><input type="radio" id="radio-bc_adj_horm_2-1" name="bc_adj_horm_2" data-redcap-field="bc_adj_horm_2" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_horm_2-2"><input type="radio" id="radio-bc_adj_horm_2-2" name="bc_adj_horm_2" data-redcap-field="bc_adj_horm_2" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_horm_2-3"><input type="radio" id="radio-bc_adj_horm_2-3" name="bc_adj_horm_2" data-redcap-field="bc_adj_horm_2" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_adj_horm_2')">reset</button></div></div>                            </div>
                         </div>
                                                 <div class="redcap-matrix-block" id="card-mama-3" style="display:none;" data-branching-rule="[n_mama] &gt;= '3'">
                             <div class="redcap-matrix-main-title">
@@ -3169,71 +3209,6 @@
 <label class="redcap-matrix-radio-label" for="radio-ish_her4-2"><input type="radio" id="radio-ish_her4-2" name="ish_her4" data-redcap-field="ish_her4" value="2" data-val="2"> <span>N&atilde;o Amplificado</span></label>
 <label class="redcap-matrix-radio-label" for="radio-ish_her4-3"><input type="radio" id="radio-ish_her4-3" name="ish_her4" data-redcap-field="ish_her4" value="3" data-val="3"> <span>Desconhecido</span></label>
 </div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('ish_her4')">reset</button></div></div></div>                            </div>
-
-                            <!-- 3. Estadiamento -->
-                            <div class="redcap-matrix-section-title">Estadiamento</div>
-                            <div class="redcap-matrix-grid redcap-matrix-grid-4">
-                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento T</span> <span class="field-redcap-tag">[bc_t_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_t_3-1"><input type="radio" id="radio-bc_t_3-1" name="bc_t_3" data-redcap-field="bc_t_3" value="1" data-val="1"> <span>Tis</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_3-2"><input type="radio" id="radio-bc_t_3-2" name="bc_t_3" data-redcap-field="bc_t_3" value="2" data-val="2"> <span>T1</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_3-3"><input type="radio" id="radio-bc_t_3-3" name="bc_t_3" data-redcap-field="bc_t_3" value="3" data-val="3"> <span>T2</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_3-4"><input type="radio" id="radio-bc_t_3-4" name="bc_t_3" data-redcap-field="bc_t_3" value="4" data-val="4"> <span>T3</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_3-5"><input type="radio" id="radio-bc_t_3-5" name="bc_t_3" data-redcap-field="bc_t_3" value="5" data-val="5"> <span>T4</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_3-6"><input type="radio" id="radio-bc_t_3-6" name="bc_t_3" data-redcap-field="bc_t_3" value="6" data-val="6"> <span>Tx</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_t_3-7"><input type="radio" id="radio-bc_t_3-7" name="bc_t_3" data-redcap-field="bc_t_3" value="7" data-val="7"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_t_3')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento N</span> <span class="field-redcap-tag">[bc_n_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_n_3-1"><input type="radio" id="radio-bc_n_3-1" name="bc_n_3" data-redcap-field="bc_n_3" value="1" data-val="1"> <span>N0</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n_3-2"><input type="radio" id="radio-bc_n_3-2" name="bc_n_3" data-redcap-field="bc_n_3" value="2" data-val="2"> <span>N1</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n_3-3"><input type="radio" id="radio-bc_n_3-3" name="bc_n_3" data-redcap-field="bc_n_3" value="3" data-val="3"> <span>N2</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n_3-4"><input type="radio" id="radio-bc_n_3-4" name="bc_n_3" data-redcap-field="bc_n_3" value="4" data-val="4"> <span>N3</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n_3-5"><input type="radio" id="radio-bc_n_3-5" name="bc_n_3" data-redcap-field="bc_n_3" value="5" data-val="5"> <span>Nx</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_n_3-6"><input type="radio" id="radio-bc_n_3-6" name="bc_n_3" data-redcap-field="bc_n_3" value="6" data-val="6"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_n_3')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento M</span> <span class="field-redcap-tag">[bc_m_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_m_3-1"><input type="radio" id="radio-bc_m_3-1" name="bc_m_3" data-redcap-field="bc_m_3" value="1" data-val="1"> <span>M0</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_m_3-2"><input type="radio" id="radio-bc_m_3-2" name="bc_m_3" data-redcap-field="bc_m_3" value="2" data-val="2"> <span>M1</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_m_3-3"><input type="radio" id="radio-bc_m_3-3" name="bc_m_3" data-redcap-field="bc_m_3" value="3" data-val="3"> <span>Mx</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_m_3-4"><input type="radio" id="radio-bc_m_3-4" name="bc_m_3" data-redcap-field="bc_m_3" value="4" data-val="4"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_m_3')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Estadiamento cl&iacute;nico</span> <span class="field-redcap-tag">[bc_overall_stage_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_3-1"><input type="radio" id="radio-bc_overall_stage_3-1" name="bc_overall_stage_3" data-redcap-field="bc_overall_stage_3" value="1" data-val="1"> <span>0</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_3-2"><input type="radio" id="radio-bc_overall_stage_3-2" name="bc_overall_stage_3" data-redcap-field="bc_overall_stage_3" value="2" data-val="2"> <span>I</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_3-3"><input type="radio" id="radio-bc_overall_stage_3-3" name="bc_overall_stage_3" data-redcap-field="bc_overall_stage_3" value="3" data-val="3"> <span>IIA</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_3-4"><input type="radio" id="radio-bc_overall_stage_3-4" name="bc_overall_stage_3" data-redcap-field="bc_overall_stage_3" value="4" data-val="4"> <span>IIB</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_3-5"><input type="radio" id="radio-bc_overall_stage_3-5" name="bc_overall_stage_3" data-redcap-field="bc_overall_stage_3" value="5" data-val="5"> <span>IIIA</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_3-6"><input type="radio" id="radio-bc_overall_stage_3-6" name="bc_overall_stage_3" data-redcap-field="bc_overall_stage_3" value="6" data-val="6"> <span>IIIB</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_3-7"><input type="radio" id="radio-bc_overall_stage_3-7" name="bc_overall_stage_3" data-redcap-field="bc_overall_stage_3" value="7" data-val="7"> <span>IIIC</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_3-8"><input type="radio" id="radio-bc_overall_stage_3-8" name="bc_overall_stage_3" data-redcap-field="bc_overall_stage_3" value="8" data-val="8"> <span>IV</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_overall_stage_3-9"><input type="radio" id="radio-bc_overall_stage_3-9" name="bc_overall_stage_3" data-redcap-field="bc_overall_stage_3" value="9" data-val="9"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_overall_stage_3')">reset</button></div></div>                            </div>
-
-                            <!-- 4. Tratamentos #1 -->
-                            <div class="redcap-matrix-section-title">Tratamentos #1</div>
-                            <div class="redcap-matrix-grid redcap-matrix-grid-4">
-                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Cirurgia</span> <span class="field-redcap-tag">[bc_surgery_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_surgery_3-1"><input type="radio" id="radio-bc_surgery_3-1" name="bc_surgery_3" data-redcap-field="bc_surgery_3" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_surgery_3-2"><input type="radio" id="radio-bc_surgery_3-2" name="bc_surgery_3" data-redcap-field="bc_surgery_3" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_surgery_3-3"><input type="radio" id="radio-bc_surgery_3-3" name="bc_surgery_3" data-redcap-field="bc_surgery_3" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_surgery_3')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Esvaziamento axilar</span> <span class="field-redcap-tag">[bc_axillary_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_axillary_3-1"><input type="radio" id="radio-bc_axillary_3-1" name="bc_axillary_3" data-redcap-field="bc_axillary_3" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_axillary_3-2"><input type="radio" id="radio-bc_axillary_3-2" name="bc_axillary_3" data-redcap-field="bc_axillary_3" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_axillary_3-3"><input type="radio" id="radio-bc_axillary_3-3" name="bc_axillary_3" data-redcap-field="bc_axillary_3" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_axillary_3')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Radioterapia</span> <span class="field-redcap-tag">[bc_radiotherapy_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_radiotherapy_3-1"><input type="radio" id="radio-bc_radiotherapy_3-1" name="bc_radiotherapy_3" data-redcap-field="bc_radiotherapy_3" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_radiotherapy_3-2"><input type="radio" id="radio-bc_radiotherapy_3-2" name="bc_radiotherapy_3" data-redcap-field="bc_radiotherapy_3" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_radiotherapy_3-3"><input type="radio" id="radio-bc_radiotherapy_3-3" name="bc_radiotherapy_3" data-redcap-field="bc_radiotherapy_3" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_radiotherapy_3')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Inibidor de PARP</span> <span class="field-redcap-tag">[parb_ini_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-parb_ini_3-1"><input type="radio" id="radio-parb_ini_3-1" name="parb_ini_3" data-redcap-field="parb_ini_3" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-parb_ini_3-2"><input type="radio" id="radio-parb_ini_3-2" name="parb_ini_3" data-redcap-field="parb_ini_3" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-parb_ini_3-3"><input type="radio" id="radio-parb_ini_3-3" name="parb_ini_3" data-redcap-field="parb_ini_3" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('parb_ini_3')">reset</button></div></div>                            </div>
-
-                            <!-- 5. Tratamentos #2 -->
-                            <div class="redcap-matrix-section-title">Tratamentos #2</div>
-                            <div class="redcap-matrix-grid redcap-matrix-grid-4">
-                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>QT neoadjuvante</span> <span class="field-redcap-tag">[bc_neoadj_chemo_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_neoadj_chemo_3-1"><input type="radio" id="radio-bc_neoadj_chemo_3-1" name="bc_neoadj_chemo_3" data-redcap-field="bc_neoadj_chemo_3" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_chemo_3-2"><input type="radio" id="radio-bc_neoadj_chemo_3-2" name="bc_neoadj_chemo_3" data-redcap-field="bc_neoadj_chemo_3" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_chemo_3-3"><input type="radio" id="radio-bc_neoadj_chemo_3-3" name="bc_neoadj_chemo_3" data-redcap-field="bc_neoadj_chemo_3" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_neoadj_chemo_3')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Hormonioterapia neoadjuvante</span> <span class="field-redcap-tag">[bc_neoadj_horm_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_neoadj_horm_3-1"><input type="radio" id="radio-bc_neoadj_horm_3-1" name="bc_neoadj_horm_3" data-redcap-field="bc_neoadj_horm_3" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_horm_3-2"><input type="radio" id="radio-bc_neoadj_horm_3-2" name="bc_neoadj_horm_3" data-redcap-field="bc_neoadj_horm_3" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_neoadj_horm_3-3"><input type="radio" id="radio-bc_neoadj_horm_3-3" name="bc_neoadj_horm_3" data-redcap-field="bc_neoadj_horm_3" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_neoadj_horm_3')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Quimioterapia adjuvante</span> <span class="field-redcap-tag">[bc_adj_chemo_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_adj_chemo_3-1"><input type="radio" id="radio-bc_adj_chemo_3-1" name="bc_adj_chemo_3" data-redcap-field="bc_adj_chemo_3" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_chemo_3-2"><input type="radio" id="radio-bc_adj_chemo_3-2" name="bc_adj_chemo_3" data-redcap-field="bc_adj_chemo_3" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_chemo_3-3"><input type="radio" id="radio-bc_adj_chemo_3-3" name="bc_adj_chemo_3" data-redcap-field="bc_adj_chemo_3" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_adj_chemo_3')">reset</button></div></div>                                <div class="redcap-matrix-col"><div class="redcap-matrix-col-header"><span>Hormonioterapia adjuvante</span> <span class="field-redcap-tag">[bc_adj_horm_3]</span></div><div class="redcap-matrix-options"><label class="redcap-matrix-radio-label" for="radio-bc_adj_horm_3-1"><input type="radio" id="radio-bc_adj_horm_3-1" name="bc_adj_horm_3" data-redcap-field="bc_adj_horm_3" value="1" data-val="1"> <span>Sim</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_horm_3-2"><input type="radio" id="radio-bc_adj_horm_3-2" name="bc_adj_horm_3" data-redcap-field="bc_adj_horm_3" value="2" data-val="2"> <span>N&atilde;o</span></label>
-<label class="redcap-matrix-radio-label" for="radio-bc_adj_horm_3-3"><input type="radio" id="radio-bc_adj_horm_3-3" name="bc_adj_horm_3" data-redcap-field="bc_adj_horm_3" value="3" data-val="3"> <span>Desconhecido</span></label>
-</div><div class="redcap-matrix-reset-row"><button type="button" class="redcap-matrix-reset-btn" onclick="FormularioClinico.limparRadioGrupo('bc_adj_horm_3')">reset</button></div></div>                            </div>
                         </div>
                                             </div>
 
@@ -3830,6 +3805,45 @@
                 </div>
             </div>
 
+            <!-- STATUS DO INSTRUMENTO (REDCAP FORM STATUS) -->
+            <div class="redcap-form-status-panel status-is-2" id="panel-status-tab-historia-pessoal">
+                <div class="redcap-status-info">
+                    <div class="redcap-status-title-row">
+                        <span class="redcap-status-header-text">Form Status</span>
+                        <span class="field-redcap-tag">[histria_pessoal_complete]</span>
+                    </div>
+                    <div class="redcap-status-controls">
+                        <label class="redcap-status-label-text" for="field-histria_pessoal-complete">Complete?</label>
+                        <div class="redcap-status-btn-group" role="group" aria-label="Status de preenchimento">
+                            <button type="button" class="redcap-status-btn" data-val="0" title="0 - Incomplete (Incompleto)" onclick="FormularioClinico.definirStatusComplete('histria_pessoal', '0')">
+                                <span class="redcap-status-dot dot-0"></span> Incomplete
+                            </button>
+                            <button type="button" class="redcap-status-btn" data-val="1" title="1 - Unverified (N&atilde;o verificado)" onclick="FormularioClinico.definirStatusComplete('histria_pessoal', '1')">
+                                <span class="redcap-status-dot dot-1"></span> Unverified
+                            </button>
+                            <button type="button" class="redcap-status-btn is-active" data-val="2" title="2 - Complete (Completo - Padr&atilde;o)" onclick="FormularioClinico.definirStatusComplete('histria_pessoal', '2')">
+                                <span class="redcap-status-dot dot-2"></span> Complete
+                            </button>
+                        </div>
+                        <select class="form-control redcap-status-select-native" id="field-histria_pessoal-complete" data-redcap-field="histria_pessoal_complete" name="histria_pessoal_complete" onchange="FormularioClinico.sincronizarStatusComplete('histria_pessoal', this.value)">
+                            <option value="0">0 - Incomplete</option>
+                            <option value="1">1 - Unverified</option>
+                            <option value="2" selected>2 - Complete</option>
+                        </select>
+                        <input type="hidden" id="field-tumores_e_leses-complete" data-redcap-field="tumores_e_leses_complete" value="2">
+                    </div>
+                </div>
+
+                <div class="redcap-status-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="FormularioClinico.salvarRascunho(true)" title="Salvar rascunho dos dados atuais no navegador">
+                        &#128190; Salvar Rascunho
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="FormularioClinico.trocarAba('tab-historia-familiar')" title="Avan&ccedil;ar para o pr&oacute;ximo instrumento">
+                        Avan&ccedil;ar para Hist&oacute;ria Familiar &#10132;
+                    </button>
+                </div>
+            </div>
+
             <!-- BARRA DE AUDITORIA DE CONFORMIDADE REDCAP: ABA 3 -->
             
 
@@ -4023,7 +4037,7 @@
                         <!-- Data da Consulta / Atendimento -->
                         <div style="display:flex; align-items:center; gap:6px;" title="Data do Atendimento / Preenchimento da Consulta">
                             <label for="input-data-atendimento" style="font-size:12px; font-weight:700; color:var(--text-muted); white-space:nowrap;">&#128197; Data Ref:</label>
-                            <input type="date" id="input-data-atendimento" class="form-control" style="width:130px; height:32px; font-size:12px;">
+                            <input type="text" id="input-data-atendimento" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10" value="26/10/2026" style="width:130px; height:32px; font-size:12px;">
                         </div>
 
                         <button type="button" class="btn btn-primary btn-sm" id="btn-add-parente" onclick="if(window.TabelaParentes){window.TabelaParentes.adicionarParente();}else if(typeof TabelaParentes!=='undefined'){TabelaParentes.adicionarParente();}">
@@ -4083,6 +4097,44 @@
                     </table>
                 </div>
             </section>
+
+            <!-- STATUS DO INSTRUMENTO (REDCAP FORM STATUS) -->
+            <div class="redcap-form-status-panel status-is-2" id="panel-status-tab-historia-familiar">
+                <div class="redcap-status-info">
+                    <div class="redcap-status-title-row">
+                        <span class="redcap-status-header-text">Form Status</span>
+                        <span class="field-redcap-tag">[hf_pais_e_avs_complete]</span>
+                    </div>
+                    <div class="redcap-status-controls">
+                        <label class="redcap-status-label-text" for="field-hf_pais_e_avs-complete">Complete?</label>
+                        <div class="redcap-status-btn-group" role="group" aria-label="Status de preenchimento">
+                            <button type="button" class="redcap-status-btn" data-val="0" title="0 - Incomplete (Incompleto)" onclick="FormularioClinico.definirStatusComplete('hf_pais_e_avs', '0')">
+                                <span class="redcap-status-dot dot-0"></span> Incomplete
+                            </button>
+                            <button type="button" class="redcap-status-btn" data-val="1" title="1 - Unverified (N&atilde;o verificado)" onclick="FormularioClinico.definirStatusComplete('hf_pais_e_avs', '1')">
+                                <span class="redcap-status-dot dot-1"></span> Unverified
+                            </button>
+                            <button type="button" class="redcap-status-btn is-active" data-val="2" title="2 - Complete (Completo - Padr&atilde;o)" onclick="FormularioClinico.definirStatusComplete('hf_pais_e_avs', '2')">
+                                <span class="redcap-status-dot dot-2"></span> Complete
+                            </button>
+                        </div>
+                        <select class="form-control redcap-status-select-native" id="field-hf_pais_e_avs-complete" data-redcap-field="hf_pais_e_avs_complete" name="hf_pais_e_avs_complete" onchange="FormularioClinico.sincronizarStatusComplete('hf_pais_e_avs', this.value)">
+                            <option value="0">0 - Incomplete</option>
+                            <option value="1">1 - Unverified</option>
+                            <option value="2" selected>2 - Complete</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="redcap-status-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="FormularioClinico.salvarRascunho(true)" title="Salvar rascunho dos dados atuais no navegador">
+                        &#128190; Salvar Rascunho
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="FormularioClinico.trocarAba('tab-criterios')" title="Avan&ccedil;ar para o pr&oacute;ximo instrumento">
+                        Avan&ccedil;ar para Crit&eacute;rios CDSS &#10132;
+                    </button>
+                </div>
+            </div>
 
             <!-- BARRA DE AUDITORIA DE CONFORMIDADE REDCAP: ABA 4 -->
             
@@ -4377,7 +4429,10 @@
                         <!-- ========================================================= -->
                         <div class="clinical-card" style="margin-bottom:0;">
                             <div class="clinical-card-header" style="padding:10px 16px;">
-                                <span style="font-size:13px; font-weight:700; color:var(--accent);">&#128101; Informa&ccedil;&otilde;es Complementares dos Parentes para Crit&eacute;rios de Testagem</span>
+                                <div>
+                                    <span style="font-size:13px; font-weight:700; color:var(--accent);">&#128101; Informa&ccedil;&otilde;es Complementares dos Parentes para Crit&eacute;rios de Testagem</span>
+                                    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Perguntas espec&iacute;ficas ativadas automaticamente conforme os diagn&oacute;sticos informados na Hist&oacute;ria Familiar (Aba 4).</div>
+                                </div>
                                 <span class="field-redcap-tag">critrios_de_testagem</span>
                             </div>
                             <div class="clinical-card-body" style="padding:12px 16px;">
@@ -4438,16 +4493,7 @@
                                         </select>
                                     </div>
 
-                                    <!-- parente_pancreas_exo -->
-                                    <div class="form-group field-wrapper" data-redcap-field="parente_pancreas_exo" data-redcap-form="critrios_de_testagem">
-                                        <label class="form-label">Parente com c&acirc;ncer de p&acirc;ncreas confirmado como ex&oacute;crino?</label>
-                                        <select name="parente_pancreas_exo" class="form-select form-control" data-field-name="parente_pancreas_exo" data-redcap-field="parente_pancreas_exo">
-                                            <option value="">-- Selecione (NULL) --</option>
-                                            <option value="1">1, Sim</option>
-                                            <option value="2">2, N&atilde;o</option>
-                                            <option value="3">3, Desconhecido</option>
-                                        </select>
-                                    </div>
+
 
                                     <!-- parente_ovario_epit -->
                                     <div class="form-group field-wrapper" data-redcap-field="parente_ovario_epit" data-redcap-form="critrios_de_testagem">
@@ -4608,7 +4654,7 @@
                                 <!-- info_mostrar -->
                                 <div class="form-group field-wrapper" data-redcap-field="info_mostrar" data-redcap-form="critrios_de_testagem" style="margin-top:16px;">
                                     <label class="checkbox-pill-label" style="display:flex; align-items:center; gap:8px;">
-                                        <input type="checkbox" name="info_mostrar___1" value="1" data-field-name="info_mostrar___1" id="field-info-mostrar">
+                                        <input type="checkbox" id="field-info-mostrar" name="info_mostrar___1" data-field-name="info_mostrar___1" data-redcap-field="info_mostrar" data-code="1" value="1">
                                         <strong>Mostrar todos os crit&eacute;rios do NCCN mesmo quando n&atilde;o h&aacute; indica&ccedil;&atilde;o formal</strong>
                                     </label>
                                 </div>
@@ -4617,6 +4663,44 @@
 
                     </div>
 
+                </div>
+            </div>
+
+            <!-- STATUS DO INSTRUMENTO (REDCAP FORM STATUS) -->
+            <div class="redcap-form-status-panel status-is-2" id="panel-status-tab-criterios">
+                <div class="redcap-status-info">
+                    <div class="redcap-status-title-row">
+                        <span class="redcap-status-header-text">Form Status</span>
+                        <span class="field-redcap-tag">[critrios_de_testagem_complete]</span>
+                    </div>
+                    <div class="redcap-status-controls">
+                        <label class="redcap-status-label-text" for="field-critrios_de_testagem-complete">Complete?</label>
+                        <div class="redcap-status-btn-group" role="group" aria-label="Status de preenchimento">
+                            <button type="button" class="redcap-status-btn" data-val="0" title="0 - Incomplete (Incompleto)" onclick="FormularioClinico.definirStatusComplete('critrios_de_testagem', '0')">
+                                <span class="redcap-status-dot dot-0"></span> Incomplete
+                            </button>
+                            <button type="button" class="redcap-status-btn" data-val="1" title="1 - Unverified (N&atilde;o verificado)" onclick="FormularioClinico.definirStatusComplete('critrios_de_testagem', '1')">
+                                <span class="redcap-status-dot dot-1"></span> Unverified
+                            </button>
+                            <button type="button" class="redcap-status-btn is-active" data-val="2" title="2 - Complete (Completo - Padr&atilde;o)" onclick="FormularioClinico.definirStatusComplete('critrios_de_testagem', '2')">
+                                <span class="redcap-status-dot dot-2"></span> Complete
+                            </button>
+                        </div>
+                        <select class="form-control redcap-status-select-native" id="field-critrios_de_testagem-complete" data-redcap-field="critrios_de_testagem_complete" name="critrios_de_testagem_complete" onchange="FormularioClinico.sincronizarStatusComplete('critrios_de_testagem', this.value)">
+                            <option value="0">0 - Incomplete</option>
+                            <option value="1">1 - Unverified</option>
+                            <option value="2" selected>2 - Complete</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="redcap-status-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="FormularioClinico.salvarRascunho(true)" title="Salvar rascunho dos dados atuais no navegador">
+                        &#128190; Salvar Rascunho
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="FormularioClinico.trocarAba('tab-mascara')" title="Visualizar a M&aacute;scara de Evolu&ccedil;&atilde;o Cl&iacute;nica">
+                        &#128203; Ver M&aacute;scara de Prontu&aacute;rio &#10132;
+                    </button>
                 </div>
             </div>
 
@@ -4728,7 +4812,39 @@
         </div>
     </div>
 
-    <!-- MODAL NAVEGADOR E IMPORTADOR DE PACIENTES REDCAP (331 REGISTROS) -->
+    <!-- MODAL DE CONFIRMA&Ccedil;&Atilde;O: LIMPAR FORMUL&Aacute;RIO -->
+    <div id="modal-confirm-limpar-form" class="modal-overlay" onclick="if(event.target === this) (window.FormularioClinico &amp;&amp; window.FormularioClinico.fecharModalLimpar())">
+        <div class="modal-card" style="max-width:500px; width:92%; border-top:4px solid #ef4444;">
+            <div class="modal-header" style="padding:14px 18px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color);">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:22px; line-height:1;">&#128465;&#65039;</span>
+                    <h3 style="font-size:16px; font-weight:700; color:var(--text-main); margin:0;">
+                        Limpar todo o formul&aacute;rio?
+                    </h3>
+                </div>
+                <button type="button" class="modal-close" onclick="FormularioClinico.fecharModalLimpar()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:16px 18px;">
+                <p style="font-size:13px; color:var(--text-main); line-height:1.5; margin-bottom:12px;">
+                    Esta a&ccedil;&atilde;o ir&aacute; <strong>apagar todos os dados cl&iacute;nicos preenchidos</strong> em todas as abas, reiniciar a &aacute;rvore familiar apenas com o probando e excluir o rascunho salvo no navegador.
+                </p>
+                <div style="background:rgba(239, 68, 68, 0.08); border:1px solid rgba(239, 68, 68, 0.25); border-radius:8px; padding:10px 14px; font-size:12px; color:#b91c1c; display:flex; gap:8px; align-items:flex-start;">
+                    <span style="font-size:15px; line-height:1;">&#9888;&#65039;</span>
+                    <span>Informa&ccedil;&otilde;es n&atilde;o salvas ou n&atilde;o exportadas em CSV ser&atilde;o perdidas permanentemente.</span>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding:12px 18px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border-color);">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-cancelar-limpar-form" onclick="FormularioClinico.fecharModalLimpar()">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" id="btn-confirmar-limpar-form" onclick="FormularioClinico.limparFormulario()">
+                    &#128465;&#65039; Sim, Limpar Tudo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NAVEGADOR E IMPORTADOR DE PACIENTES REDCAP (343 REGISTROS) -->
     
 
     <!-- SCRIPTS DA APLICA&Ccedil;&Atilde;O (ORDEM RIGOROSA DE DEPEND&Ecirc;NCIAS) -->
@@ -4748,6 +4864,10 @@
     <script src="assets/js/redcap_calibrador_hf.js"></script>
     <!-- 6.1 Combobox Universal de Busca em Todos os Dropdowns -->
     <script src="assets/js/searchable_select.js"></script>
+    <!-- 6.2 Base Local de Registros HC do REDCap (Valida&ccedil;&atilde;o Instant&acirc;nea de Duplicidade) -->
+    <script src="assets/js/registros_hc_redcap.js"></script>
+    <!-- 6.3 M&aacute;scara e Valida&ccedil;&atilde;o Inteligente Universal de Datas (DD/MM/AAAA) -->
+    <script src="assets/js/date_input.js"></script>
     <!-- 7. Controlador Principal do Formul&aacute;rio -->
     <script src="assets/js/formulario.js"></script>
     <!-- 8. Ponte de Integra&ccedil;&atilde;o REDCap (CSV Bridge) -->

@@ -115,6 +115,68 @@ const CdssEngine = {
     },
 
     /**
+     * Obtém valor de campo de forma universal e resiliente:
+     * 1. dadosPaciente[fieldName]
+     * 2. input radio checked (name ou data-redcap-field)
+     * 3. select / input / textarea com data-redcap-field
+     * 4. select / input / textarea com name
+     * 5. element por ID convenção field-nome-com-hifens
+     */
+    getVal: function(dadosPaciente, fieldName, defaultValue = '') {
+        if (dadosPaciente && dadosPaciente[fieldName] !== undefined && dadosPaciente[fieldName] !== null && String(dadosPaciente[fieldName]).trim() !== '') {
+            return String(dadosPaciente[fieldName]).trim();
+        }
+        if (typeof document !== 'undefined') {
+            try {
+                // 1. Radio selecionado
+                const radio = document.querySelector(`input[type="radio"][name="${fieldName}"]:checked, input[type="radio"][data-redcap-field="${fieldName}"]:checked`);
+                if (radio) return String(radio.value).trim();
+
+                // 2. Select ou Input por data-redcap-field
+                const elRc = document.querySelector(`select[data-redcap-field="${fieldName}"], input[data-redcap-field="${fieldName}"], textarea[data-redcap-field="${fieldName}"]`);
+                if (elRc && elRc.value !== undefined && elRc.value !== null && String(elRc.value).trim() !== '') {
+                    return String(elRc.value).trim();
+                }
+
+                // 3. Elemento por name
+                const elName = document.querySelector(`[name="${fieldName}"]`);
+                if (elName && elName.value !== undefined && elName.value !== null && String(elName.value).trim() !== '') {
+                    return String(elName.value).trim();
+                }
+
+                // 4. Elemento por id (convenção field-nome-com-hifens)
+                const idHyphen = 'field-' + fieldName.replace(/_/g, '-');
+                const elId = document.getElementById(idHyphen);
+                if (elId && elId.value !== undefined && elId.value !== null && String(elId.value).trim() !== '') {
+                    return String(elId.value).trim();
+                }
+            } catch (e) {}
+        }
+        return String(defaultValue).trim();
+    },
+
+    /**
+     * Avalia se um campo booleano ou checkbox está ativo (true / '1')
+     */
+    getBool: function(dadosPaciente, fieldName) {
+        if (dadosPaciente) {
+            if (dadosPaciente[fieldName] === '1' || dadosPaciente[fieldName] === 1 || dadosPaciente[fieldName] === true) return true;
+            if (fieldName.includes('___')) {
+                const parts = fieldName.split('___');
+                const parenKey = `${parts[0]}(${parts[1]})`;
+                if (dadosPaciente[parenKey] === '1' || dadosPaciente[parenKey] === 1 || dadosPaciente[parenKey] === true) return true;
+            }
+        }
+        if (typeof document !== 'undefined') {
+            try {
+                const chk = document.querySelector(`input[type="checkbox"][name="${fieldName}"], input[type="checkbox"][data-field-name="${fieldName}"]`);
+                if (chk) return Boolean(chk.checked);
+            } catch (e) {}
+        }
+        return false;
+    },
+
+    /**
      * Determina o grau de parentesco em relação ao probando
      * Retorna: 1 (1º grau), 2 (2º grau), 3 (3º grau), 0 (próprio probando) ou 4 (mais distante/não consanguíneo)
      */
@@ -499,9 +561,9 @@ const CdssEngine = {
         const genesMamaHboc = [8, 9, 35, 15, 2, 5, 10, 40, 41, 11, 61, 53, 55]; // BRCA1, BRCA2, PALB2, CHEK2, etc.
 
         // mama_crit_var_familiar (NCCN CRIT-1 / CRIT-2): Variante P/LP conhecida em gene de mama na família
-        const varFamMama = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
-        const varSomatico = parseInt(dadosPaciente.variante_somatico || document.querySelector('[name="variante_somatico"]')?.value, 10) || 0;
-        const histFamMut = (dadosPaciente.hist_familiar_1 === '1' || dadosPaciente.hist_familiar___1 === '1');
+        const varFamMama = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
+        const varSomatico = parseInt(this.getVal(dadosPaciente, "variante_somatico", "0"), 10) || 0;
+        const histFamMut = this.getBool(dadosPaciente, "hist_familiar___1") || (dadosPaciente.hist_familiar_1 === '1');
         regrasMama.mama_crit_var_familiar = genesMamaHboc.includes(varFamMama) || (histFamMut && genesMamaHboc.includes(varFamMama));
         if (regrasMama.mama_crit_var_familiar) {
             resultado.criteriosAtendidos.push({
@@ -513,7 +575,7 @@ const CdssEngine = {
         }
 
         // mama_crit_1: Decisão de tratamento sistêmico usando inibidores de PARP / Olaparibe adjuvante
-        const testarOlaparibe = parseInt(dadosPaciente.testar_olaparibe || document.querySelector('[name="testar_olaparibe"]')?.value, 10) === 1;
+        const testarOlaparibe = temMamaProbando && (parseInt(this.getVal(dadosPaciente, "testar_olaparibe", "0"), 10) === 1);
         regrasMama.mama_crit_1 = testarOlaparibe;
         if (regrasMama.mama_crit_1) {
             resultado.criteriosAtendidos.push({
@@ -659,7 +721,7 @@ const CdssEngine = {
         }
 
         // mama_crit_14: Modelo de Probabilidade Pré-Teste BRCA1/2 > 5%
-        const preTesteBrca = parseFloat(dadosPaciente.pre_teste_brca || document.querySelector('[name="pre_teste_brca"]')?.value) || 0;
+        const preTesteBrca = parseFloat(this.getVal(dadosPaciente, "pre_teste_brca", "0")) || 0;
         regrasMama.mama_crit_14 = preTesteBrca > 5;
         if (regrasMama.mama_crit_14) {
             resultado.criteriosAtendidos.push({
@@ -671,7 +733,7 @@ const CdssEngine = {
         }
 
         // prostata_mama_crit: Parente de 1º/2º grau atendendo critérios de mama/próstata
-        const parenteIndicado = parseInt(dadosPaciente.parente_indicado || document.querySelector('[name="parente_indicado"]')?.value, 10) === 1;
+        const parenteIndicado = parseInt(this.getVal(dadosPaciente, "parente_indicado", "0"), 10) === 1;
         regrasMama.prostata_mama_crit = parenteIndicado;
         if (regrasMama.prostata_mama_crit) {
             resultado.criteriosAtendidos.push({
@@ -684,7 +746,7 @@ const CdssEngine = {
 
         // mama_crit_somatico: Variante somática tumoral com relevância germinativa em gene HBOC
         const isHbocSomatic = genesMamaHboc.includes(varSomatico);
-        const temSomaticoRelevante = (dadosPaciente.teste_somatico___2 === '1' || dadosPaciente['teste_somatico(2)'] === '1' || Boolean(document.querySelector('input[name="teste_somatico___2"]')?.checked));
+        const temSomaticoRelevante = this.getBool(dadosPaciente, "teste_somatico___2");
         regrasMama.mama_crit_somatico = isHbocSomatic || (temSomaticoRelevante && (varSomatico === 0 || isHbocSomatic));
         if (regrasMama.mama_crit_somatico) {
             resultado.criteriosAtendidos.push({
@@ -705,26 +767,28 @@ const CdssEngine = {
         // =========================================================================
         const regrasOvario = {};
         const genesOvario = [2, 8, 9, 10, 16, 26, 28, 29, 35, 40, 41];
-        const varFamOvario = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
-        const preTesteBrcaOvario = parseFloat(dadosPaciente.pre_teste_brca || document.querySelector('[name="pre_teste_brca"]')?.value) || 0;
-        const ovarioGrupo = String(dadosPaciente.ovario_grupo || document.querySelector('[name="ovario_grupo"]')?.value || '').trim();
-        const periTubaEpitelial = String(dadosPaciente.peri_tuba_epitelial || document.querySelector('[name="peri_tuba_epitelial"]')?.value || '').trim();
-        const ovarioTipo = String(dadosPaciente.ovario_tipo || document.querySelector('[name="ovario_tipo"]')?.value || '').trim();
-        const parenteOvarioEpit = String(dadosPaciente.parente_ovario_epit || document.querySelector('[name="parente_ovario_epit"]')?.value || '').trim();
+        const varFamOvario = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
+        const preTesteBrcaOvario = parseFloat(this.getVal(dadosPaciente, "pre_teste_brca", "0")) || 0;
+        const ovarioGrupo = this.getVal(dadosPaciente, "ovario_grupo");
+        const periTubaEpitelial = this.getVal(dadosPaciente, "peri_tuba_epitelial");
+        const ovarioTipo = this.getVal(dadosPaciente, "ovario_tipo");
+        const parenteOvarioEpit = this.getVal(dadosPaciente, "parente_ovario_epit");
 
-        // ovario_crit_1: Pessoal CA Ovário/Tuba/Peritôneo Epitelial (se ovario_grupo === 2, não epitelial)
-        regrasOvario.ovario_crit_1 = (ovarioGrupo === '1' || periTubaEpitelial === '1' || (temOvarioProbando && ovarioGrupo !== '2'));
+        // ovario_crit_1: Pessoal CA Ovário/Tuba/Peritôneo em qualquer idade
+        const temTubaPeritonioProbando = tumoresProbando.some(t => String(t.codigo || t.cod) === '45' || this.norm(t.tipo).includes("peritonio") || this.norm(t.tipo).includes("tuba"));
+        regrasOvario.ovario_crit_1 = (temOvarioProbando || ovarioGrupo === '1' || ovarioGrupo === '2' || periTubaEpitelial === '1' || temTubaPeritonioProbando);
         if (regrasOvario.ovario_crit_1) {
             resultado.criteriosAtendidos.push({
                 codigo: "ovario_crit_1",
                 sindrome: "Ovário / HBOC",
-                descricao: "História pessoal de câncer epitelial de ovário, tuba uterina ou peritôneo em qualquer idade",
-                justificativa: "Probando acometido por neoplasia epitelial de ovário, trompa ou peritôneo."
+                descricao: "História pessoal de câncer de ovário, tuba uterina ou peritôneo em qualquer idade",
+                justificativa: "Probando acometido por neoplasia de ovário, trompa ou peritôneo."
             });
         }
 
         // ovario_crit_2: Pessoal CA Ovário Não Epitelial Raro (SCTAT, SCCOHT, Sertoli-Leydig)
-        regrasOvario.ovario_crit_2 = ['1', '2', '7'].includes(ovarioTipo);
+        // Somente subtipos raros sindrômicos (1, 2, 7). Subtipos como 4 (Outra), 3 (Sertoli) ou 6 (Granulosa) NÃO disparam ovario_crit_2.
+        regrasOvario.ovario_crit_2 = temOvarioProbando && ['1', '2', '7'].includes(ovarioTipo);
         if (regrasOvario.ovario_crit_2) {
             resultado.criteriosAtendidos.push({
                 codigo: "ovario_crit_2",
@@ -735,8 +799,8 @@ const CdssEngine = {
         }
 
         // ovario_crit_3: Familiar de 1º ou 2º grau com CA Epitelial de Ovário/Tuba/Peritôneo
-        const temHfOvarD2Epit = (parenteOvarioEpit === '1' && (dadosPaciente.hist_familiar_ovar_d2 === '1' || histFam.ovario_d2));
-        const temHfPeriTubaD2 = (dadosPaciente.hist_familiar_peri_tuba_d2 === '1' || histFam.peri_tuba_d2);
+        const temHfOvarD2Epit = (parenteOvarioEpit === '1' && (this.getVal(dadosPaciente, "hist_familiar_ovar_d2") === '1' || histFam.ovario_d2));
+        const temHfPeriTubaD2 = (this.getVal(dadosPaciente, "hist_familiar_peri_tuba_d2") === '1' || histFam.peri_tuba_d2);
         regrasOvario.ovario_crit_3 = (temHfOvarD2Epit || temHfPeriTubaD2);
         if (regrasOvario.ovario_crit_3) {
             resultado.criteriosAtendidos.push({
@@ -789,9 +853,8 @@ const CdssEngine = {
         // =========================================================================
         const regrasPancreas = {};
         const genesPancreas = [2, 8, 9, 14, 16, 26, 28, 29, 35, 53, 55]; // ATM, BRCA1/2, CDKN2A, MMR, PALB2, STK11, TP53
-        const varFamPancreas = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
-        const preTesteBrcaPancreas = parseFloat(dadosPaciente.pre_teste_brca || document.querySelector('[name="pre_teste_brca"]')?.value) || 0;
-        const parentePancreasExo = String(dadosPaciente.parente_pancreas_exo || document.querySelector('[name="parente_pancreas_exo"]')?.value || '').trim();
+        const varFamPancreas = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
+        const preTesteBrcaPancreas = parseFloat(this.getVal(dadosPaciente, "pre_teste_brca", "0")) || 0;
 
         // pancreas_crit_1: Pessoal Câncer de Pâncreas Exócrino (incluindo células acinares)
         regrasPancreas.pancreas_crit_1 = temPancreasProbando;
@@ -805,7 +868,7 @@ const CdssEngine = {
         }
 
         // pancreas_crit_2: Familiar de 1º grau com CA de Pâncreas Exócrino
-        regrasPancreas.pancreas_crit_2 = (histFam.pancreas_d1 || dadosPaciente.hist_familiar_pancr_d1 === '1');
+        regrasPancreas.pancreas_crit_2 = (histFam.pancreas_d1 || this.getVal(dadosPaciente, "hist_familiar_pancr_d1") === '1');
         if (regrasPancreas.pancreas_crit_2) {
             resultado.criteriosAtendidos.push({
                 codigo: "pancreas_crit_2",
@@ -857,13 +920,13 @@ const CdssEngine = {
         // =========================================================================
         const regrasProstata = {};
         const genesProstata = [2, 9, 15, 21, 28]; // ATM, BRCA2, CHEK2, HOXB13, MSH2 (conforme NCCN/REDCap)
-        const varFamProstata = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
-        const prostMetas = (dadosPaciente.prostata_metastat === '1' || document.querySelector('[name="prostata_metastat"]')?.value === '1');
-        const prostLinfo = (dadosPaciente.prostata_linfon === '1' || document.querySelector('[name="prostata_linfon"]')?.value === '1');
-        const prostRisco = String(dadosPaciente.prostata_risco || document.querySelector('[name="prostata_risco"]')?.value || '');
+        const varFamProstata = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
+        const prostMetas = (this.getVal(dadosPaciente, "prostata_metastat") === '1');
+        const prostLinfo = (this.getVal(dadosPaciente, "prostata_linfon") === '1');
+        const prostRisco = this.getVal(dadosPaciente, "prostata_risco");
 
         // prostata_crit_1: Metastático ou Linfonodo Positivo
-        regrasProstata.prostata_crit_1 = (prostMetas || prostLinfo);
+        regrasProstata.prostata_crit_1 = temProstataProbando && (prostMetas || prostLinfo);
         if (regrasProstata.prostata_crit_1) {
             resultado.criteriosAtendidos.push({
                 codigo: "prostata_crit_1",
@@ -874,7 +937,7 @@ const CdssEngine = {
         }
 
         // prostata_crit_2: Risco Alto ou Muito Alto
-        regrasProstata.prostata_crit_2 = (prostRisco === '4' || prostRisco === '5');
+        regrasProstata.prostata_crit_2 = temProstataProbando && (prostRisco === '4' || prostRisco === '5');
         if (regrasProstata.prostata_crit_2) {
             resultado.criteriosAtendidos.push({
                 codigo: "prostata_crit_2",
@@ -994,7 +1057,7 @@ const CdssEngine = {
         const regrasLynch = {};
 
         // Variante familiar conhecida em genes MMR (MLH1=26, MSH2=28, MSH6=29, PMS2=36, EPCAM=16)
-        const varFam = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
+        const varFam = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
         regrasLynch.lynch_crit_1 = [16, 26, 28, 29, 36].includes(varFam);
         if (regrasLynch.lynch_crit_1) {
             resultado.criteriosAtendidos.push({
@@ -1005,20 +1068,57 @@ const CdssEngine = {
             });
         }
 
-        // Helper universal para detectar neoplasias do espectro de Lynch no probando
+        // Helper universal para detectar neoplasias do espectro de Lynch no probando (NCCN Guidelines)
         const isTumorLynchProbando = (t) => {
             const n = this.norm(t.tipo || "");
+            const d = this.norm(t.detalhes || "");
             const cod = String(t.codigo || t.cod || "");
+
+            // 1. Exclusões expressas: hemangioblastoma (110)
             if (cod === "110" || n.includes("hemangioblastoma")) return false;
-            if (cod === "33" || n.includes("snc") || n.includes("sistema nervoso")) {
-                const sncLoc = String(dadosPaciente.tumor_snc_local || "");
-                return sncLoc === "1" || n.includes("glioblastoma") || n.includes("astrocitoma");
+            // Exclui tumores que NÃO pertencem ao espectro de Lynch:
+            // 2 = Câncer de Ânus (HPV / CEC)
+            // 20 = Câncer dos Músculos (Rabdomiossarcoma / Sarcoma)
+            // 25 = Câncer de Pele não-melanoma (CBC / CEC cutâneo comum - apenas neoplasias sebáceas/Muir-Torre 102/120 são Lynch)
+            if (cod === "2" || cod === "20" || cod === "25") return false;
+
+            // 2. Câncer de Ovário (código 23): integra o espectro de tumores relacionados a Lynch conforme diretrizes
+            if (cod === "23" || n.includes("ovario")) {
+                return true;
             }
-            return ["7", "30", "9", "11", "23", "24", "25", "3", "38", "40", "102", "120", "2", "20"].includes(cod) ||
-                n.includes("colon") || n.includes("reto") || n.includes("endometrio") ||
-                n.includes("estomago") || n.includes("gastrico") || (n.includes("ovario") && !n.includes("teratoma")) ||
-                n.includes("pancreas") || n.includes("urotelial") || n.includes("delgado") ||
-                n.includes("vias biliares") || n.includes("sebaceo") || n.includes("ceratoacantoma");
+
+            // 3. Câncer de Endométrio (código 9): APENAS carcinoma epitelial pertence ao espectro
+            // Sarcoma uterino (não epitelial = '2') não é Lynch
+            if (cod === "9" || n.includes("endometrio")) {
+                const endoTipo = this.getVal(dadosPaciente, "endometrio_tipo");
+                if (endoTipo === "2" || d.includes("sarcoma") || d.includes("leiomio")) return false;
+                return true;
+            }
+
+            // 4. Tumor de SNC (código 33): Variante Turcot (Glioblastoma e astrocitoma)
+            if (cod === "33" || n.includes("snc") || n.includes("sistema nervoso") || n.includes("cerebro")) {
+                const sncTipo = this.getVal(dadosPaciente, "tumor_snc_tipo");
+                const sncLoc = this.getVal(dadosPaciente, "tumor_snc_local");
+                return sncTipo === "1" || sncTipo === "7" || sncLoc === "1" || n.includes("glioblastoma") || n.includes("astrocitoma") || d.includes("glioblastoma") || d.includes("astrocitoma");
+            }
+
+            // 5. Câncer de Pâncreas Exócrino (código 24): apenas exócrino (adenocarcinoma), não PNET
+            if (cod === "24") return true;
+            if (n.includes("pancreas")) {
+                if (n.includes("neuroendocrino") || d.includes("neuroendocrino") || this.getVal(dadosPaciente, "neuroendocrino_local") === "1") return false;
+                return true;
+            }
+
+            // 6. Câncer Gástrico / Estômago (código 11)
+            if (cod === "11" || n.includes("estomago") || n.includes("gastrico")) return true;
+
+            // 7. Demais neoplasias comprovadas do espectro NCCN:
+            // Cólon (7), Reto (30), Intestino delgado (40), Câncer urotelial (3), Vias biliares (38),
+            // Adenoma sebáceo (102), Queratoacantoma (120)
+            return ["7", "30", "40", "3", "38", "102", "120"].includes(cod) ||
+                n.includes("colon") || n.includes("reto") || n.includes("delgado") ||
+                n.includes("urotelial") || n.includes("ureter") || n.includes("vias biliares") ||
+                n.includes("sebaceo") || n.includes("ceratoacantoma") || n.includes("queratoacantoma");
         };
 
         // lynch_crit_2: CA do espectro no paciente < 50 anos
@@ -1084,7 +1184,7 @@ const CdssEngine = {
         }
 
         // lynch_crit_7: Parente de 1º ou 2º grau com CCR/CE + segundo tumor sincrônico/metacrônico
-        const sincParente = (dadosPaciente.parente_ls_sinc || document.querySelector('[name="parente_ls_sinc"]')?.value) === '1';
+        const sincParente = (this.getVal(dadosPaciente, "parente_ls_sinc") === '1');
         regrasLynch.lynch_crit_7 = (histFam.colon_d2 || histFam.endometrio_d2) && sincParente;
         if (regrasLynch.lynch_crit_7) {
             resultado.criteriosAtendidos.push({
@@ -1118,7 +1218,7 @@ const CdssEngine = {
         }
 
         // lynch_crit_10: Predição de risco pré-teste >= 5% (PREMM5 / MMRpro / MMRpredict)
-        const preTesteSl = parseFloat(dadosPaciente.pre_teste_sl || document.querySelector('[name="pre_teste_sl"]')?.value) || 0;
+        const preTesteSl = parseFloat(this.getVal(dadosPaciente, "pre_teste_sl", "0")) || 0;
         regrasLynch.lynch_crit_10 = preTesteSl > 5;
         if (regrasLynch.lynch_crit_10) {
             resultado.criteriosAtendidos.push({
@@ -1130,14 +1230,22 @@ const CdssEngine = {
         }
 
         // lynch_suges_1: Sugestão NCCN se PREMM5 > 2.5% sem história pessoal de CCR/CE
-        regrasLynch.lynch_suges_1 = preTesteSl > 2.5;
+        regrasLynch.lynch_suges_1 = preTesteSl > 2.5 && preTesteSl <= 5;
+        if (regrasLynch.lynch_suges_1) {
+            resultado.criteriosAtendidos.push({
+                codigo: "lynch_suges_1",
+                sindrome: "Lynch (Sugestão NCCN)",
+                descricao: "Indivíduo sem história de CCR ou CE com risco entre 2,5% e 5% em modelo preditivo (PREMM₅)",
+                justificativa: `Probabilidade calculada de ${preTesteSl}% (entre 2,5% e 5%).`
+            });
+        }
 
         // lynch_crit_11: Teste somático / biópsia com dMMR ou MSI-H, ou variante somática em gene MMR
-        const somatico4 = document.querySelector('input[name="teste_somatico___4"]')?.checked || (dadosPaciente['teste_somatico___4'] === '1');
-        const somatico5 = document.querySelector('input[name="teste_somatico___5"]')?.checked || (dadosPaciente['teste_somatico___5'] === '1');
-        const somatico6 = document.querySelector('input[name="teste_somatico___6"]')?.checked || (dadosPaciente['teste_somatico___6'] === '1');
+        const somatico4 = this.getBool(dadosPaciente, "teste_somatico___4");
+        const somatico5 = this.getBool(dadosPaciente, "teste_somatico___5");
+        const somatico6 = this.getBool(dadosPaciente, "teste_somatico___6");
         const isLynchSomatic = [16, 26, 28, 29, 36].includes(varSomatico);
-        const somaticoLynchP = document.querySelector('input[name="teste_somatico___2"]')?.checked || (dadosPaciente['teste_somatico___2'] === '1') || (dadosPaciente['teste_somatico(2)'] === '1');
+        const somaticoLynchP = this.getBool(dadosPaciente, "teste_somatico___2");
         regrasLynch.lynch_crit_11 = (somatico4 || somatico5 || somatico6 || isLynchSomatic || (somaticoLynchP && (varSomatico === 0 || isLynchSomatic)));
         if (regrasLynch.lynch_crit_11) {
             resultado.criteriosAtendidos.push({
@@ -1159,7 +1267,10 @@ const CdssEngine = {
             });
         }
 
-        const lynchIndicacao = Object.values(regrasLynch).some(v => v === true);
+        // Indicação estrita de Lynch baseia-se nos critérios diagnósticos (lynch_crit_*), excluindo sugestões isoladas
+        const lynchIndicacao = Object.keys(regrasLynch)
+            .filter(k => k.startsWith('lynch_crit_'))
+            .some(k => regrasLynch[k] === true);
         resultado.sindromes.lynch_indicacao = lynchIndicacao;
 
 
@@ -1169,7 +1280,7 @@ const CdssEngine = {
         const regrasLFS = {};
 
         // slf_crit_1: Família com variante TP53 P/LP conhecida (55)
-        const varFamTp53 = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
+        const varFamTp53 = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
         regrasLFS.slf_crit_1 = (varFamTp53 === 55);
         if (regrasLFS.slf_crit_1) {
             resultado.criteriosAtendidos.push({
@@ -1193,8 +1304,9 @@ const CdssEngine = {
         }
 
         // slf_crit_chompret_10: Carcinoma Adrenocortical (ACC) em qualquer idade
-        const temACC = tumoresProbando.some(t => this.norm(t.tipo).includes("adrenocortical") || ((String(t.codigo || t.cod) === '1' || this.norm(t.tipo).includes("adrenal")) && parseInt(dadosPaciente.adrenal_tipo, 10) === 1)) ||
-                       (parseInt(dadosPaciente.adrenal_tipo || document.querySelector('[name="adrenal_tipo"]')?.value, 10) === 1);
+        const temAdrenalProbando = tumoresProbando.some(t => String(t.codigo || t.cod) === '1' || this.norm(t.tipo).includes("adrenal"));
+        const adrenalTipo = parseInt(this.getVal(dadosPaciente, "adrenal_tipo", "0"), 10) || 0;
+        const temACC = (temAdrenalProbando && adrenalTipo === 1) || tumoresProbando.some(t => this.norm(t.tipo).includes("adrenocortical") || this.norm(t.detalhes || "").includes("adrenocortical"));
         regrasLFS.slf_crit_chompret_10 = temACC;
         if (temACC) {
             resultado.criteriosAtendidos.push({
@@ -1206,8 +1318,9 @@ const CdssEngine = {
         }
 
         // slf_crit_chompret_11: Carcinoma de Plexo Coroide (CPC) em qualquer idade
-        const temCPC = tumoresProbando.some(t => this.norm(t.tipo).includes("plexo") || this.norm(t.tipo).includes("coroide")) ||
-                       (parseInt(dadosPaciente.tumor_snc_tipo || document.querySelector('[name="tumor_snc_tipo"]')?.value, 10) === 2);
+        const temSncProbando = tumoresProbando.some(t => String(t.codigo || t.cod) === '33' || this.norm(t.tipo).includes("snc") || this.norm(t.tipo).includes("sistema nervoso"));
+        const sncTipo = parseInt(this.getVal(dadosPaciente, "tumor_snc_tipo", "0"), 10) || 0;
+        const temCPC = (temSncProbando && sncTipo === 2) || tumoresProbando.some(t => this.norm(t.tipo).includes("plexo") || this.norm(t.tipo).includes("coroide") || this.norm(t.detalhes || "").includes("plexo"));
         regrasLFS.slf_crit_chompret_11 = temCPC;
         if (temCPC) {
             resultado.criteriosAtendidos.push({
@@ -1219,7 +1332,9 @@ const CdssEngine = {
         }
 
         // slf_crit_chompret_12: Rabdomiossarcoma embrionário anaplásico
-        const temRMS = (parseInt(dadosPaciente.rabdomiossarcoma_subtipo || document.querySelector('[name="rabdomiossarcoma_subtipo"]')?.value, 10) === 1);
+        const temSarcomaProbando = tumoresProbando.some(t => String(t.codigo || t.cod) === '44' || String(t.codigo || t.cod) === '20' || this.norm(t.tipo).includes("sarcoma"));
+        const rmsSubtipo = parseInt(this.getVal(dadosPaciente, "rabdomiossarcoma_subtipo", "0"), 10) || 0;
+        const temRMS = (temSarcomaProbando && rmsSubtipo === 1) || tumoresProbando.some(t => this.norm(t.tipo).includes("rabdomiossarcoma") && this.norm(t.detalhes || "").includes("anaplas"));
         regrasLFS.slf_crit_chompret_12 = temRMS;
         if (temRMS) {
             resultado.criteriosAtendidos.push({
@@ -1233,13 +1348,13 @@ const CdssEngine = {
         // slf_crit_chompret_7: Mama < 46 anos + parente de 1º/2º grau com tumor do espectro < 56 anos (exceto mama)
         const mamaMenor46 = temMamaProbando && menorIdadeMamaProbando < 46;
         const famOsteoMenor56 = (histFam.osteo_d2 && histFam.menor_idade_osteo < 56) ||
-                                (dadosPaciente.hist_familiar_osteo_d2 === '1' && parseFloat(dadosPaciente.hist_familiar_osteo_idade || 999) < 56);
+                                (this.getVal(dadosPaciente, "hist_familiar_osteo_d2") === '1' && parseFloat(this.getVal(dadosPaciente, "hist_familiar_osteo_idade", "999")) < 56);
         const famSarcoMenor56 = (histFam.sarcoma_d2 && histFam.menor_idade_sarcoma < 56) ||
-                                (dadosPaciente.hist_familiar_sarco_d2 === '1' && parseFloat(dadosPaciente.hist_familiar_sarco_idade || 999) < 56);
+                                (this.getVal(dadosPaciente, "hist_familiar_sarco_d2") === '1' && parseFloat(this.getVal(dadosPaciente, "hist_familiar_sarco_idade", "999")) < 56);
         const famSncMenor56 = (histFam.snc_d2 && histFam.menor_idade_snc < 56) ||
-                              (dadosPaciente.hist_familiar_snc_d2 === '1' && parseFloat(dadosPaciente.hist_familiar_snc_idade || 999) < 56);
+                              (this.getVal(dadosPaciente, "hist_familiar_snc_d2") === '1' && parseFloat(this.getVal(dadosPaciente, "hist_familiar_snc_idade", "999")) < 56);
         const famAdrenoMenor56 = (histFam.adrenal_d2 && histFam.menor_idade_adrenal < 56) ||
-                                 (dadosPaciente.hist_familiar_adreno_d2 === '1' && parseFloat(dadosPaciente.hist_familiar_adreno_idade || 999) < 56);
+                                 (this.getVal(dadosPaciente, "hist_familiar_adreno_d2") === '1' && parseFloat(this.getVal(dadosPaciente, "hist_familiar_adreno_idade", "999")) < 56);
         const parenteLfsNaoMama = (famOsteoMenor56 || famSarcoMenor56 || famSncMenor56 || famAdrenoMenor56);
         regrasLFS.slf_crit_chompret_7 = (mamaMenor46 && parenteLfsNaoMama);
         if (regrasLFS.slf_crit_chompret_7) {
@@ -1260,7 +1375,8 @@ const CdssEngine = {
             const n = this.norm(t.tipo || "");
             if (cod === '16' || n.includes('mama')) {
                 nLfsMama++;
-            } else if (['42', '44', '33', '1'].includes(cod) ||
+            } else if (['42', '44', '33'].includes(cod) ||
+                       (cod === '1' && adrenalTipo === 1) ||
                        (n.includes('sarcoma') && !n.includes('osteossarcoma')) ||
                        n.includes('osteossarcoma') ||
                        (n.includes('snc') && !n.includes('hemangioblastoma')) ||
@@ -1269,7 +1385,7 @@ const CdssEngine = {
             }
         });
         const tem2DoEspectroNaoMamaExclusivo = (nLfsNaoMama >= 2) || (nLfsMama >= 1 && nLfsNaoMama >= 1) ||
-                                               (dadosPaciente.sarcoma_multiplo === '1' || dadosPaciente.snc_multiplo === '1');
+                                               (this.getVal(dadosPaciente, "sarcoma_multiplo") === '1' || this.getVal(dadosPaciente, "snc_multiplo") === '1');
         regrasLFS.slf_crit_chompret_9 = (idadePrimeiroCancerGeral < 46 && tem2DoEspectroNaoMamaExclusivo);
         if (regrasLFS.slf_crit_chompret_9) {
             resultado.criteriosAtendidos.push({
@@ -1281,7 +1397,7 @@ const CdssEngine = {
         }
 
         // slf_crit_4: Variante somática TP53 (teste_somatico(3) < 30 anos OU variante_somatico = 55 independente da idade)
-        const somaticoTp53 = Boolean(document.querySelector('input[name="teste_somatico___3"]')?.checked) || (dadosPaciente['teste_somatico___3'] === '1') || (dadosPaciente['teste_somatico(3)'] === '1');
+        const somaticoTp53 = this.getBool(dadosPaciente, "teste_somatico___3") || (varSomatico === 55);
         const idadePrimeiroC = tumoresProbando.reduce((min, t) => Math.min(min, parseInt(t.idadeDx, 10) || 999), 999);
         regrasLFS.slf_crit_4 = (somaticoTp53 && idadePrimeiroC < 30) || (varSomatico === 55);
         if (regrasLFS.slf_crit_4) {
@@ -1294,7 +1410,7 @@ const CdssEngine = {
         }
 
         // slf_crit_5: Parente falecido não testado compatível
-        const histFamTp53Falecido = document.querySelector('input[name="hist_familiar___13"]')?.checked || (dadosPaciente['hist_familiar___13'] === '1') || (dadosPaciente['hist_familiar(13)'] === '1');
+        const histFamTp53Falecido = this.getBool(dadosPaciente, "hist_familiar___13");
         regrasLFS.slf_crit_5 = histFamTp53Falecido;
         if (histFamTp53Falecido) {
             resultado.criteriosAtendidos.push({
@@ -1313,7 +1429,7 @@ const CdssEngine = {
         // 6. SÍNDROME DE COWDEN / PHTS (PTEN - NCCN GUIDELINES)
         // =========================================================================
         const regrasPten = {};
-        const varFamPten = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
+        const varFamPten = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
         regrasPten.pten_crit_1 = (varFamPten === 61);
         if (regrasPten.pten_crit_1) {
             resultado.criteriosAtendidos.push({
@@ -1376,7 +1492,7 @@ const CdssEngine = {
             });
         }
 
-        const somaticoPten = document.querySelector('input[name="teste_somatico___1"]')?.checked || (dadosPaciente['teste_somatico___1'] === '1') || (dadosPaciente['teste_somatico(1)'] === '1') || (varSomatico === 61);
+        const somaticoPten = this.getBool(dadosPaciente, "teste_somatico___1") || (varSomatico === 61);
         regrasPten.pten_crit_12 = somaticoPten;
         if (somaticoPten) {
             resultado.criteriosAtendidos.push({
@@ -1387,7 +1503,7 @@ const CdssEngine = {
             });
         }
 
-        const histFamPtenFalecido = document.querySelector('input[name="hist_familiar___19"]')?.checked || (dadosPaciente['hist_familiar___19'] === '1') || (dadosPaciente['hist_familiar(19)'] === '1');
+        const histFamPtenFalecido = this.getBool(dadosPaciente, "hist_familiar___19");
         regrasPten.pten_crit_13 = histFamPtenFalecido;
         if (histFamPtenFalecido) {
             resultado.criteriosAtendidos.push({
@@ -1398,7 +1514,7 @@ const CdssEngine = {
             });
         }
 
-        const ptenIndicacao = Object.values(regrasPten).some(v => v === true) || (parseInt(dadosPaciente.pten_clinical_dx, 10) === 1);
+        const ptenIndicacao = Object.values(regrasPten).some(v => v === true) || (parseInt(this.getVal(dadosPaciente, "pten_clinical_dx", "0"), 10) === 1);
         resultado.sindromes.pten_indicacao = ptenIndicacao;
 
         // =========================================================================
@@ -1407,7 +1523,7 @@ const CdssEngine = {
         const regrasPolipAden = {};
         
         // Critério 1: >= 20 adenomas cumulativos
-        const nPolipoAdenoma = parseInt(dadosPaciente.n_polipo_adenoma || document.querySelector('[name="n_polipo_adenoma"]')?.value, 10) || 0;
+        const nPolipoAdenoma = parseInt(this.getVal(dadosPaciente, "n_polipo_adenoma", "0"), 10) || 0;
         regrasPolipAden.polip_aden_crit_1 = (nPolipoAdenoma === 1);
         if (regrasPolipAden.polip_aden_crit_1) {
             resultado.criteriosAtendidos.push({
@@ -1419,7 +1535,7 @@ const CdssEngine = {
         }
 
         // Critério 2: Conhecida PV em gene de polipose adenomatosa na família
-        const varFamPolip = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
+        const varFamPolip = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
         const genesAdenomaLegado = [1, 3, 30, 34, 38, 39];
         regrasPolipAden.polip_aden_crit_2 = genesAdenomaLegado.includes(varFamPolip);
         if (regrasPolipAden.polip_aden_crit_2) {
@@ -1432,7 +1548,7 @@ const CdssEngine = {
         }
 
         // Critério 3: CHRPE multifocal ou bilateral
-        const retinaBiMulti = parseInt(dadosPaciente.trofia_retina_bi_multi || document.querySelector('[name="trofia_retina_bi_multi"]')?.value, 10) || 0;
+        const retinaBiMulti = parseInt(this.getVal(dadosPaciente, "trofia_retina_bi_multi", "0"), 10) || 0;
         regrasPolipAden.polip_aden_crit_3 = [1, 2, 3].includes(retinaBiMulti);
         if (regrasPolipAden.polip_aden_crit_3) {
             resultado.criteriosAtendidos.push({
@@ -1444,7 +1560,7 @@ const CdssEngine = {
         }
 
         // Critério 4: Carcinoma papilífero de tireoide variante cribiforme-morular
-        const tireoideVar = parseInt(dadosPaciente.tireoide_variante || document.querySelector('[name="tireoide_variante"]')?.value, 10) || 0;
+        const tireoideVar = parseInt(this.getVal(dadosPaciente, "tireoide_variante", "0"), 10) || 0;
         regrasPolipAden.polip_aden_crit_4 = (tireoideVar === 3);
         if (regrasPolipAden.polip_aden_crit_4) {
             resultado.criteriosAtendidos.push({
@@ -1456,7 +1572,7 @@ const CdssEngine = {
         }
 
         // Critério 5: História familiar de polipose sem possibilidade/desejo de teste no afetado
-        const histFam18 = document.querySelector('input[name="hist_familiar___18"]')?.checked || (dadosPaciente['hist_familiar___18'] === '1') || (dadosPaciente['hist_familiar(18)'] === '1');
+        const histFam18 = this.getBool(dadosPaciente, "hist_familiar___18");
         regrasPolipAden.polip_aden_crit_5 = !!histFam18;
         if (regrasPolipAden.polip_aden_crit_5) {
             resultado.criteriosAtendidos.push({
@@ -1490,7 +1606,7 @@ const CdssEngine = {
         const regrasPolipJuv = {};
         
         // Critério 1: >= 5 pólipos juvenis do cólon
-        const polipoJuvenilColon = parseInt(dadosPaciente.polipo_juvenil_colon || document.querySelector('[name="polipo_juvenil_colon"]')?.value, 10) || 0;
+        const polipoJuvenilColon = parseInt(this.getVal(dadosPaciente, "polipo_juvenil_colon", "0"), 10) || 0;
         regrasPolipJuv.polip_juve_crit_1 = (polipoJuvenilColon === 1);
         if (regrasPolipJuv.polip_juve_crit_1) {
             resultado.criteriosAtendidos.push({
@@ -1502,7 +1618,7 @@ const CdssEngine = {
         }
 
         // Critério 2: Múltiplos pólipos juvenis distribuídos ao longo do trato GI
-        const polipoJuvenilMultiplo = parseInt(dadosPaciente.polipo_juvenil_multiplo || document.querySelector('[name="polipo_juvenil_multiplo"]')?.value, 10) || 0;
+        const polipoJuvenilMultiplo = parseInt(this.getVal(dadosPaciente, "polipo_juvenil_multiplo", "0"), 10) || 0;
         regrasPolipJuv.polip_juve_crit_2 = (polipoJuvenilMultiplo === 1);
         if (regrasPolipJuv.polip_juve_crit_2) {
             resultado.criteriosAtendidos.push({
@@ -1527,7 +1643,7 @@ const CdssEngine = {
         }
 
         // Extensão NCCN: Variante familiar conhecida em BMPR1A (7) ou SMAD4 (51)
-        const varFamJuv = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
+        const varFamJuv = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
         regrasPolipJuv.polip_juve_crit_var_fam = [7, 51].includes(varFamJuv);
         if (regrasPolipJuv.polip_juve_crit_var_fam) {
             resultado.criteriosAtendidos.push({
@@ -1560,7 +1676,7 @@ const CdssEngine = {
         const regrasPjs = {};
         
         // Critério 1: >= 2 pólipos de PJS confirmados histologicamente
-        const polipoPjsConfirmado = parseInt(dadosPaciente.polipo_pjs_confirmado || document.querySelector('[name="polipo_pjs_confirmado"]')?.value, 10) || 0;
+        const polipoPjsConfirmado = parseInt(this.getVal(dadosPaciente, "polipo_pjs_confirmado", "0"), 10) || 0;
         regrasPjs.pjs_crit_1 = (polipoPjsConfirmado === 1);
         if (regrasPjs.pjs_crit_1) {
             resultado.criteriosAtendidos.push({
@@ -1610,7 +1726,7 @@ const CdssEngine = {
         }
 
         // Extensão NCCN: Variante familiar conhecida em STK11 (53)
-        const varFamPjs = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
+        const varFamPjs = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
         regrasPjs.pjs_crit_var_fam = (varFamPjs === 53);
         if (regrasPjs.pjs_crit_var_fam) {
             resultado.criteriosAtendidos.push({
@@ -1663,22 +1779,24 @@ const CdssEngine = {
         });
 
         // Feocromocitoma
-        const pheoMultiplo = (dadosPaciente.pheo_multiplo || document.querySelector('[name="pheo_multiplo"]')?.value) === '1';
-        const adrenalTipo = parseInt(dadosPaciente.adrenal_tipo || document.querySelector('[name="adrenal_tipo"]')?.value, 10) || 0;
+        const pheoMultiplo = (this.getVal(dadosPaciente, "pheo_multiplo") === '1');
+        const temAdrenalProbandoVhl = tumoresProbando.some(t => String(t.codigo || t.cod) === '1' || this.norm(t.tipo).includes("adrenal"));
         if (pheoMultiplo) nTumorVhl += 2;
-        else if (adrenalTipo === 2 || tumoresProbando.some(t => this.norm(t.tipo).includes("feocromocitoma"))) nTumorVhl += 1;
+        else if ((temAdrenalProbandoVhl && adrenalTipo === 2) || tumoresProbando.some(t => this.norm(t.tipo).includes("feocromocitoma"))) nTumorVhl += 1;
 
         // RCC
-        const rccMultiplo = (dadosPaciente.rcc_multiplo || document.querySelector('[name="rcc_multiplo"]')?.value) === '1';
-        const rimTipo = parseInt(dadosPaciente.rim_tipo || document.querySelector('[name="rim_tipo"]')?.value, 10) || 0;
+        const rccMultiplo = (this.getVal(dadosPaciente, "rcc_multiplo") === '1');
+        const rimTipo = parseInt(this.getVal(dadosPaciente, "rim_tipo", "0"), 10) || 0;
+        const temRimProbandoVhl = tumoresProbando.some(t => String(t.codigo || t.cod) === '31' || this.norm(t.tipo).includes("rim") || this.norm(t.tipo).includes("renal"));
         if (rccMultiplo) nTumorVhl += 2;
-        else if (rimTipo === 1 || tumoresProbando.some(t => this.norm(t.tipo).includes("celulas renais") || this.norm(t.tipo).includes("rcc"))) nTumorVhl += 1;
+        else if ((temRimProbandoVhl && rimTipo === 1) || tumoresProbando.some(t => this.norm(t.tipo).includes("celulas renais") || this.norm(t.tipo).includes("rcc"))) nTumorVhl += 1;
 
         // PNET
-        const pnetMultiplo = (dadosPaciente.pnet_multiplo || document.querySelector('[name="pnet_multiplo"]')?.value) === '1';
-        const pnetLocal = parseInt(dadosPaciente.neuroendocrino_local || document.querySelector('[name="neuroendocrino_local"]')?.value, 10) || 0;
+        const pnetMultiplo = (this.getVal(dadosPaciente, "pnet_multiplo") === '1');
+        const pnetLocal = parseInt(this.getVal(dadosPaciente, "neuroendocrino_local", "0"), 10) || 0;
+        const temNeuroProbandoVhl = tumoresProbando.some(t => String(t.codigo || t.cod) === '41' || this.norm(t.tipo).includes("neuroendocrino"));
         if (pnetMultiplo) nTumorVhl += 2;
-        else if (pnetLocal === 1 || tumoresProbando.some(t => this.norm(t.tipo).includes("neuroendocrino") && this.norm(t.tipo).includes("pancrea"))) nTumorVhl += 1;
+        else if ((temNeuroProbandoVhl && pnetLocal === 1) || tumoresProbando.some(t => this.norm(t.tipo).includes("neuroendocrino") && this.norm(t.tipo).includes("pancrea"))) nTumorVhl += 1;
 
         // Manifestações VHL (inclui cistos múltiplos renais 215 e pancreáticos 214)
         let nManifesVhl = nTumorVhl;
@@ -1734,7 +1852,7 @@ const CdssEngine = {
         }
 
         // Extensão NCCN: Variante familiar conhecida em VHL (58)
-        const varFamVhl = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
+        const varFamVhl = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
         regrasVhl.vhl_crit_var_fam = (varFamVhl === 58);
         if (regrasVhl.vhl_crit_var_fam) {
             resultado.criteriosAtendidos.push({
@@ -1767,7 +1885,7 @@ const CdssEngine = {
         const regrasCdh1 = {};
 
         // Critério 1: Variante patogênica conhecida de CDH1 na família (código 11)
-        const varFamCdh1 = parseInt(dadosPaciente.variante_familia || document.querySelector('[name="variante_familia"]')?.value, 10) || 0;
+        const varFamCdh1 = parseInt(this.getVal(dadosPaciente, "variante_familia", "0"), 10) || 0;
         regrasCdh1.cdh1_crit_1 = (varFamCdh1 === 11);
         if (regrasCdh1.cdh1_crit_1) {
             resultado.criteriosAtendidos.push({
@@ -1779,8 +1897,9 @@ const CdssEngine = {
         }
 
         // Critério 2: Probando com câncer gástrico difuso (CGD / DGC) em qualquer idade
-        const estomagoTipo = parseInt(dadosPaciente.estomago_tipo || document.querySelector('[name="estomago_tipo"]')?.value, 10) || 0;
-        const temGastricoDifusoProbando = (estomagoTipo === 1) || tumoresProbando.some(t => this.norm(t.tipo).includes("gastrico difuso") || this.norm(t.detalhes || "").includes("difuso"));
+        const estomagoTipo = parseInt(this.getVal(dadosPaciente, "estomago_tipo", "0"), 10) || 0;
+        const temGastricoProbandoCdh1 = tumoresProbando.some(t => String(t.codigo || t.cod) === '11' || this.norm(t.tipo).includes("estomago") || this.norm(t.tipo).includes("gastrico"));
+        const temGastricoDifusoProbando = temGastricoProbandoCdh1 && (estomagoTipo === 1 || tumoresProbando.some(t => this.norm(t.tipo).includes("gastrico difuso") || this.norm(t.detalhes || "").includes("difuso")));
         regrasCdh1.cdh1_crit_2 = temGastricoDifusoProbando;
         if (regrasCdh1.cdh1_crit_2) {
             resultado.criteriosAtendidos.push({
@@ -1805,7 +1924,7 @@ const CdssEngine = {
         }
 
         // Critério 4: HF de >= 2 parentes (1º/2º grau) com CA gástrico, sendo >= 1 confirmado como difuso
-        const gasDifD2 = (dadosPaciente.hist_familiar_gas_dif_d2 || document.querySelector('[name="hist_familiar_gas_dif_d2"]')?.value) === '1';
+        const gasDifD2 = (this.getVal(dadosPaciente, "hist_familiar_gas_dif_d2") === '1');
         regrasCdh1.cdh1_crit_4 = (nGastricoD2 >= 2 && gasDifD2);
         if (regrasCdh1.cdh1_crit_4) {
             resultado.criteriosAtendidos.push({

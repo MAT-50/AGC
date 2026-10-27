@@ -197,6 +197,29 @@ h1, h2, h3, h4, .badge-count {
     filter: brightness(1.1);
 }
 
+.btn-outline-danger {
+    background: transparent;
+    border: 1.5px solid #dc2626;
+    color: #dc2626;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-outline-danger:hover {
+    background: #dc2626;
+    color: #ffffff;
+    border-color: #dc2626;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+.btn-outline-danger:active {
+    transform: scale(0.98);
+}
+
 .btn-sm {
     padding: 5px 10px;
     font-size: 12px;
@@ -1332,6 +1355,79 @@ textarea.form-control {
     color: var(--text-muted);
 }
 
+/* --- ALERTA DE REGISTRO HC DUPLICADO NO REDCAP --- */
+.form-control.is-invalid-hc,
+.form-control.is-invalid-hc:focus {
+    border: 2px solid #ef4444 !important;
+    box-shadow: 0 0 0 3.5px rgba(239, 68, 68, 0.28) !important;
+    background-color: rgba(239, 68, 68, 0.05) !important;
+}
+
+.hc-alerta-box {
+    margin-top: 8px;
+    padding: 10px 14px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1.5px solid rgba(239, 68, 68, 0.45);
+    border-left: 4px solid #ef4444;
+    border-radius: var(--border-radius-sm);
+    color: var(--text-main);
+    font-size: 12px;
+    line-height: 1.5;
+    animation: fadeInSlideDown 0.25s ease-out;
+}
+
+@keyframes fadeInSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.hc-alerta-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: #ef4444;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.hc-alerta-detalhes {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.hc-alerta-detalhes strong {
+    color: var(--text-main);
+}
+
+.btn-carregar-paciente-hc {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(239, 68, 68, 0.18);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.btn-carregar-paciente-hc:hover {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+}
+
 /* --- GRUPOS DE CHECKBOX & RADIO ESTILIZADOS --- */
 .checkbox-pills-group {
     display: flex;
@@ -1860,6 +1956,310 @@ textarea.form-control {
 [data-theme="dark"] .redcap-matrix-reset-btn {
     color: #38bdf8;
 }
+
+/* --- PAINEL DE STATUS DO INSTRUMENTO (REDCAP FORM STATUS) --- */
+.redcap-form-status-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 16px 20px;
+    margin-top: 24px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+    border-left: 5px solid #16a34a; /* Verde por padrão (Completo) */
+    transition: all 0.25s ease;
+}
+
+.redcap-form-status-panel.status-is-0 {
+    border-left-color: #dc2626 !important; /* Vermelho: Incompleto */
+}
+
+.redcap-form-status-panel.status-is-1 {
+    border-left-color: #eab308 !important; /* Amarelo: Não verificado */
+}
+
+.redcap-form-status-panel.status-is-2 {
+    border-left-color: #16a34a !important; /* Verde: Completo */
+}
+
+.redcap-status-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.redcap-status-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.redcap-status-header-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.redcap-status-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.redcap-status-label-text {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.redcap-status-btn-group {
+    display: inline-flex;
+    background: rgba(0, 0, 0, 0.04);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    gap: 3px;
+}
+
+.redcap-status-btn {
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.18s ease;
+}
+
+.redcap-status-btn:hover {
+    color: var(--text-main);
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.redcap-status-btn.is-active[data-val="0"] {
+    background: #fee2e2;
+    color: #991b1b;
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.2);
+}
+
+.redcap-status-btn.is-active[data-val="1"] {
+    background: #fef9c3;
+    color: #854d0e;
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(234, 179, 8, 0.2);
+}
+
+.redcap-status-btn.is-active[data-val="2"] {
+    background: #dcfce7;
+    color: #166534;
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(22, 163, 74, 0.2);
+}
+
+.redcap-status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.redcap-status-dot.dot-0 { background-color: #ef4444; }
+.redcap-status-dot.dot-1 { background-color: #eab308; }
+.redcap-status-dot.dot-2 { background-color: #22c55e; }
+
+.redcap-status-select-native {
+    width: auto !important;
+    padding: 4px 10px !important;
+    height: 32px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+}
+
+.redcap-status-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Modo Escuro */
+[data-theme="dark"] .redcap-status-btn-group,
+body.dark-theme .redcap-status-btn-group {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .redcap-status-btn.is-active[data-val="0"],
+body.dark-theme .redcap-status-btn.is-active[data-val="0"] {
+    background: rgba(220, 38, 38, 0.3);
+    color: #fca5a5;
+}
+
+[data-theme="dark"] .redcap-status-btn.is-active[data-val="1"],
+body.dark-theme .redcap-status-btn.is-active[data-val="1"] {
+    background: rgba(234, 179, 8, 0.3);
+    color: #fde047;
+}
+
+[data-theme="dark"] .redcap-status-btn.is-active[data-val="2"],
+body.dark-theme .redcap-status-btn.is-active[data-val="2"] {
+    background: rgba(22, 163, 74, 0.3);
+    color: #86efac;
+}
+
+/* --- 3.4 DIAGNÓSTICOS SINDRÔMICOS (CONFIRMADOS & SUSPEITOS) --- */
+.dx-sindromicos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.dx-sindromicos-box {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.dx-box-header-conf {
+    background: rgba(22, 163, 74, 0.08);
+    border-bottom: 1.5px solid rgba(22, 163, 74, 0.25);
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dx-box-header-sus {
+    background: rgba(234, 179, 8, 0.08);
+    border-bottom: 1.5px solid rgba(234, 179, 8, 0.25);
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dx-checkbox-list {
+    padding: 14px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dx-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+    user-select: none;
+}
+
+.dx-checkbox-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.dx-checkbox-item input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    accent-color: var(--accent);
+}
+
+[data-theme="dark"] .dx-checkbox-item:hover,
+body.dark-theme .dx-checkbox-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .dx-box-header-conf,
+body.dark-theme .dx-box-header-conf {
+    background: rgba(22, 163, 74, 0.18);
+    border-bottom-color: rgba(22, 163, 74, 0.4);
+}
+
+[data-theme="dark"] .dx-box-header-sus,
+body.dark-theme .dx-box-header-sus {
+    background: rgba(234, 179, 8, 0.18);
+    border-bottom-color: rgba(234, 179, 8, 0.4);
+}
+
+/* ==========================================================================
+   COMPONENTE UNIVERSAL DE CAMPO DE DATA MASCARADA (DD/MM/AAAA)
+   ========================================================================== */
+.date-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.date-input-wrapper .date-masked-input {
+    padding-right: 34px !important;
+    letter-spacing: 0.3px;
+}
+
+.date-input-wrapper .date-picker-btn {
+    position: absolute;
+    right: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: var(--transition-smooth);
+    padding: 0;
+    z-index: 2;
+}
+
+.date-input-wrapper .date-picker-btn:hover {
+    color: var(--accent);
+    background: rgba(14, 165, 233, 0.12);
+}
+
+.form-control.date-masked-input.is-invalid {
+    border-color: #ef4444 !important;
+    background-color: rgba(239, 68, 68, 0.04) !important;
+}
+
+.form-control.date-masked-input.is-valid {
+    border-color: #10b981;
+}
+
+.date-feedback-msg {
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #ef4444;
+}
+
 
 
 
