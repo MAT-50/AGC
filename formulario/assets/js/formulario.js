@@ -694,12 +694,12 @@ const FormularioClinico = {
             return null;
         }
 
-        // Busca na base indexada do REDCap (337 pacientes)
+        // Busca na base indexada do REDCap (343 pacientes)
         const paciente = window.RegistroHcValidator ? window.RegistroHcValidator.buscar(valor) : null;
-        const recordIdAtual = document.getElementById('field-record-id')?.value || null;
+        const recordIdCarregado = window.RedcapBridge?.ultimoRawCarregado?.record_id || null;
 
         // Se encontrou paciente e não é o mesmo registro atualmente aberto para edição
-        if (paciente && (!recordIdAtual || String(recordIdAtual) !== String(paciente.record_id))) {
+        if (paciente && (!recordIdCarregado || String(recordIdCarregado) !== String(paciente.record_id))) {
             // 1. Aplica borda vermelha destacada ao redor do campo
             inputHc.classList.add('is-invalid-hc');
 
@@ -1014,9 +1014,9 @@ const FormularioClinico = {
                 msg.textContent = '';
             });
 
-            // 6. Reseta Record ID e referências do paciente carregado
+            // 6. Reseta Record ID e referências do paciente carregado (padrão '1' para novo paciente)
             const elRecId = document.getElementById('field-record-id');
-            if (elRecId) elRecId.value = '';
+            if (elRecId) elRecId.value = '1';
             if (window.RedcapBridge) {
                 window.RedcapBridge.ultimoRawCarregado = null;
             }

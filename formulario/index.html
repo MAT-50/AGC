@@ -6,7 +6,7 @@
     <title>AGC Analytics &mdash; Formul&aacute;rio Cl&iacute;nico de Oncogen&eacute;tica (FMRP-USP)</title>
     
     <!-- Design System do Formul&aacute;rio -->
-    <link rel="stylesheet" href="assets/css/style.css?v=1793065665">
+    <link rel="stylesheet" href="assets/css/style.css?v=1793325826">
 
     <style>
         /* Combobox flutuante de parentesco */
@@ -623,8 +623,8 @@
 <option value="21">Rio Grande do Sul (RS)</option>
 <option value="22">Rond&ocirc;nia (RO)</option>
 <option value="23">Roraima (RR)</option>
-<option value="25" selected>Santa Catarina (SC)</option>
-<option value="26">S&atilde;o Paulo (SP)</option>
+<option value="25">Santa Catarina (SC)</option>
+<option value="26" selected>S&atilde;o Paulo (SP)</option>
 <option value="27">Sergipe (SE)</option>
 <option value="28">Tocantins (TO)</option>
                             </select>
@@ -1785,7 +1785,7 @@
                             <label class="form-label" for="field-data-consulta">
                                 Data da Primeira Consulta na Gen&eacute;tica <span class="field-redcap-tag">[data_primeira_consulta_agc]</span>
                             </label>
-                            <input type="text" id="field-data-consulta" data-redcap-field="data_primeira_consulta_agc" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10" value="26/10/2026">
+                            <input type="text" id="field-data-consulta" data-redcap-field="data_primeira_consulta_agc" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10" value="29/10/2026">
                         </div>
 
                         <div class="form-group col-span-2">
@@ -4037,7 +4037,7 @@
                         <!-- Data da Consulta / Atendimento -->
                         <div style="display:flex; align-items:center; gap:6px;" title="Data do Atendimento / Preenchimento da Consulta">
                             <label for="input-data-atendimento" style="font-size:12px; font-weight:700; color:var(--text-muted); white-space:nowrap;">&#128197; Data Ref:</label>
-                            <input type="text" id="input-data-atendimento" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10" value="26/10/2026" style="width:130px; height:32px; font-size:12px;">
+                            <input type="text" id="input-data-atendimento" class="form-control date-masked-input" placeholder="DD/MM/AAAA" maxlength="10" value="29/10/2026" style="width:130px; height:32px; font-size:12px;">
                         </div>
 
                         <button type="button" class="btn btn-primary btn-sm" id="btn-add-parente" onclick="if(window.TabelaParentes){window.TabelaParentes.adicionarParente();}else if(typeof TabelaParentes!=='undefined'){TabelaParentes.adicionarParente();}">
@@ -4849,30 +4849,30 @@
 
     <!-- SCRIPTS DA APLICA&Ccedil;&Atilde;O (ORDEM RIGOROSA DE DEPEND&Ecirc;NCIAS) -->
     <!-- 1. Schema compilado do REDCap -->
-    <script src="assets/js/redcap_schema.js?v=1793065665"></script>
+    <script src="assets/js/redcap_schema.js?v=1793325826"></script>
     <!-- 2. Motor de Branching Logic -->
-    <script src="assets/js/branching_logic.js?v=1793065665"></script>
+    <script src="assets/js/branching_logic.js?v=1793325826"></script>
     <!-- 3. Presets e Casos Did&aacute;ticos -->
-    <script src="assets/js/presets.js?v=1793065665"></script>
+    <script src="assets/js/presets.js?v=1793325826"></script>
     <!-- 4. Motor de Infer&ecirc;ncia CDSS NCCN Modular -->
-    <script src="assets/js/cdss_engine.js?v=1793065665"></script>
-    <script src="assets/js/cdss/renal.js?v=1793065665"></script>
-    <script src="assets/js/cdss/men.js?v=1793065665"></script>
+    <script src="assets/js/cdss_engine.js?v=1793325826"></script>
+    <script src="assets/js/cdss/renal.js?v=1793325826"></script>
+    <script src="assets/js/cdss/men.js?v=1793325826"></script>
     <!-- 5. Tabela de Parentes (Hist&oacute;ria Familiar) -->
-    <script src="assets/js/tabela.js?v=1793065665"></script>
+    <script src="assets/js/tabela.js?v=1793325826"></script>
     <!-- 6. Calibrador Oficial de Hist&oacute;ria Familiar para REDCap (7 Instrumentos hf_*) -->
-    <script src="assets/js/redcap_calibrador_hf.js?v=1793065665"></script>
+    <script src="assets/js/redcap_calibrador_hf.js?v=1793325826"></script>
     <!-- 6.1 Combobox Universal de Busca em Todos os Dropdowns -->
-    <script src="assets/js/searchable_select.js?v=1793065665"></script>
+    <script src="assets/js/searchable_select.js?v=1793325826"></script>
     <!-- 6.2 Base Local de Registros HC do REDCap (Valida&ccedil;&atilde;o Instant&acirc;nea de Duplicidade) -->
-    <script src="assets/js/registros_hc_redcap.js?v=1793065665"></script>
+    <script src="assets/js/registros_hc_redcap.js?v=1793325826"></script>
     <!-- 6.3 M&aacute;scara e Valida&ccedil;&atilde;o Inteligente Universal de Datas (DD/MM/AAAA) -->
-    <script src="assets/js/date_input.js?v=1793065665"></script>
+    <script src="assets/js/date_input.js?v=1793325826"></script>
     <!-- 7. Controlador Principal do Formul&aacute;rio -->
-    <script src="assets/js/formulario.js?v=1793065665"></script>
+    <script src="assets/js/formulario.js?v=1793325826"></script>
     <!-- 8. Ponte de Integra&ccedil;&atilde;o REDCap (CSV Bridge) -->
-    <script src="assets/js/redcap_header_5290.js?v=1793065665"></script>
-    <script src="assets/js/redcap_bridge.js?v=1793065665"></script>
+    <script src="assets/js/redcap_header_5290.js?v=1793325826"></script>
+    <script src="assets/js/redcap_bridge.js?v=1793325826"></script>
 
     <script>
         // Configura&ccedil;&atilde;o do Tema Escuro/Claro

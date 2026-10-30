@@ -557,14 +557,20 @@ const RedcapBridge = {
                 }
 
                 let val = null;
-                if (field && code && raw[`${field}___${code}`] !== undefined) {
-                    val = raw[`${field}___${code}`];
+                if (field && code) {
+                    if (raw[`${field}___${code}`] !== undefined) {
+                        val = raw[`${field}___${code}`];
+                    } else if (raw[`${field}(${code})`] !== undefined) {
+                        val = raw[`${field}(${code})`];
+                    }
                 } else if (name && raw[name] !== undefined) {
                     val = raw[name];
-                } else if (field && raw[`${field}___1`] !== undefined) {
-                    val = raw[`${field}___1`];
-                } else if (field && raw[field] !== undefined) {
-                    val = raw[field];
+                } else if (field && !code) {
+                    if (raw[`${field}___1`] !== undefined) {
+                        val = raw[`${field}___1`];
+                    } else if (raw[field] !== undefined) {
+                        val = raw[field];
+                    }
                 }
 
                 if (val !== null && val !== undefined) {
@@ -804,12 +810,7 @@ const RedcapBridge = {
                     col = fieldName;
                 }
                 camposNoFormulario.add(col);
-                if (el.checked) {
-                    dadosForm[col] = '1';
-                    if (!fieldName.includes('___')) {
-                        dadosForm[fieldName] = '1';
-                    }
-                }
+                dadosForm[col] = el.checked ? '1' : '0';
                 return;
             }
 
@@ -893,8 +894,14 @@ const RedcapBridge = {
             }
         }
 
-        if (!dadosForm['record_id'] && this.ultimoRawCarregado && this.ultimoRawCarregado['record_id']) {
-            dadosForm['record_id'] = String(this.ultimoRawCarregado['record_id']);
+        if (!dadosForm['record_id'] || dadosForm['record_id'] === '') {
+            if (this.ultimoRawCarregado && this.ultimoRawCarregado['record_id']) {
+                dadosForm['record_id'] = String(this.ultimoRawCarregado['record_id']);
+            } else {
+                const elRecId = document.getElementById('field-record-id');
+                const valRecId = elRecId ? String(elRecId.value).trim() : '';
+                dadosForm['record_id'] = valRecId !== '' ? valRecId : '1';
+            }
         }
 
         return dadosForm;
@@ -906,7 +913,10 @@ const RedcapBridge = {
         this._exportando = true;
 
         const dadosForm = this.coletarDadosFormulario();
-        const recId = dadosForm['record_id'] || 'novo';
+        if (!dadosForm['record_id'] || dadosForm['record_id'] === '') {
+            dadosForm['record_id'] = '1';
+        }
+        const recId = dadosForm['record_id'];
 
         try {
             if (window.FormularioClinico.mostrarToast) {
@@ -918,14 +928,6 @@ const RedcapBridge = {
                 const header = window.REDCAP_HEADER_5290;
                 const linha = header.map(col => {
                     let val = dadosForm[col] !== undefined && dadosForm[col] !== null ? String(dadosForm[col]) : '';
-                    // Se a coluna for checkbox (ex: n_primario_1_desc___1) e estiver vazia, verifica se o valor base foi setado como '1'
-                    if (val === '' && col.includes('___')) {
-                        const baseField = col.split('___')[0];
-                        const code = col.split('___')[1];
-                        if (code === '1' && (dadosForm[baseField] === '1' || dadosForm[baseField] === 1 || dadosForm[baseField] === true)) {
-                            val = '1';
-                        }
-                    }
                     if (val.includes('"') || val.includes(',') || val.includes('\n') || val.includes('\r')) {
                         return '"' + val.replace(/"/g, '""') + '"';
                     }

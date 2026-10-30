@@ -2510,13 +2510,13 @@ const TabelaParentes = {
     isHistoricoDesconhecido: function(val) {
         if (!val) return false;
         const s = String(val).trim().toLowerCase();
-        return s === "hist_desc" || s === "0_desc" || s === "0" || s === "histórico desconhecido" || s === "historico desconhecido" || s === "don't know" || s === "dont know" || s === "desconhecido";
+        return s === "hist_desc" || s === "0_desc" || s === "histórico desconhecido" || s === "historico desconhecido" || s === "don't know" || s === "dont know" || s === "desconhecido";
     },
 
     isSemHistorico: function(val) {
         if (!val) return false;
         const s = String(val).trim().toLowerCase();
-        return s === "sem_hist" || s === "1_none" || s === "1" || s === "sem histórico" || s === "sem historico" || s === "none listed" || s === "sem neoplasias relatadas";
+        return s === "sem_hist" || s === "1_none" || s === "sem histórico" || s === "sem historico" || s === "none listed" || s === "sem neoplasias relatadas";
     },
 
     isStatusDiagnostico: function(val) {
