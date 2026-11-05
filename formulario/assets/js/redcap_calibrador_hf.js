@@ -108,7 +108,7 @@
             }
             // Filhos (Blood-related sons)
             if (codA === 'A1' && b > 0 && c === 0 && sexo === 'M' || parNorm === 'filho') {
-                return { tipo: 'dinamico', form: 'hf_primeiro_grau', grupo: 'son', prefixo: 'son', rotuloGrupo: 'Filho', fieldCount: 'b_sons', checkField: 'fam_mem1', checkVal: '7', checkLabel: '7, Blood-related sons' };
+                return { tipo: 'dinamico', form: 'hf_primeiro_grau', grupo: 'son', prefixo: 'sons', histPrefix: 'son', rotuloGrupo: 'Filho', fieldCount: 'b_sons', checkField: 'fam_mem1', checkVal: '7', checkLabel: '7, Blood-related sons' };
             }
             // Filhas (Blood-related daughters)
             if (codA === 'A1' && b > 0 && c === 0 && sexo === 'F' || parNorm === 'filha') {
@@ -476,7 +476,7 @@
             });
 
             // Função auxiliar para processar um parente e extrair tumores e variáveis
-            const processarParenteCampos = (p, prefix, formName, rotuloParente, specInfo) => {
+            const processarParenteCampos = (p, prefix, formName, rotuloParente, specInfo, histPrefix) => {
                 const diags = Array.isArray(p.diags) ? p.diags : [];
 
                 // Separa tumores reais de opções de status (desconhecido / sem histórico)
@@ -516,9 +516,14 @@
                 } else if (p.history_code !== undefined && p.history_code !== null && p.history_code !== '') {
                     histVal = String(p.history_code);
                     histLabel = histVal === '0' ? "0, Don't know" : (histVal === '2' ? "2, History" : "1, None listed");
+                } else {
+                    // Padrão de segurança clínico: se o parente está na família sem tumores informados, o padrão é "Sem histórico" (1, None listed)
+                    histVal = '1';
+                    histLabel = '1, None listed';
                 }
 
-                const histField = `${prefix}history`;
+                const actualHistPrefix = histPrefix || prefix;
+                const histField = `${actualHistPrefix}history`;
                 if (histVal !== '') {
                     payloadApi[histField] = histVal;
                     camposInspector.push({
@@ -622,7 +627,7 @@
                 const item = grupos[pa.key];
                 if (item && item.parente) {
                     linhasTexto.push('');
-                    processarParenteCampos(item.parente, pa.prefix, 'hf_pais_e_avs', pa.rotulo, null);
+                    processarParenteCampos(item.parente, pa.prefix, 'hf_pais_e_avs', pa.rotulo, null, pa.prefix);
                 }
             });
 
@@ -632,7 +637,7 @@
                 // 1º Grau
                 { grupo: 'bro', form: 'hf_primeiro_grau', prefixo: 'bro', histPrefix: 'bro', countField: 'f_bro', checkField: 'fam_mem1', checkVal: '1', checkLabel: '1, Full brothers', famMemGen: '1', rotulo: 'Irmão' },
                 { grupo: 'sis', form: 'hf_primeiro_grau', prefixo: 'sis', histPrefix: 'sis', countField: 'f_sis', checkField: 'fam_mem1', checkVal: '0', checkLabel: '0, Full sisters', famMemGen: '0', rotulo: 'Irmã' },
-                { grupo: 'son', form: 'hf_primeiro_grau', prefixo: 'son', histPrefix: 'son', countField: 'b_sons', checkField: 'fam_mem1', checkVal: '7', checkLabel: '7, Blood-related sons', famMemGen: '7', rotulo: 'Filho' },
+                { grupo: 'son', form: 'hf_primeiro_grau', prefixo: 'sons', histPrefix: 'son', countField: 'b_sons', checkField: 'fam_mem1', checkVal: '7', checkLabel: '7, Blood-related sons', famMemGen: '7', rotulo: 'Filho' },
                 { grupo: 'dghtr', form: 'hf_primeiro_grau', prefixo: 'dghtr', histPrefix: 'dghtr', countField: 'b_dghtr', checkField: 'fam_mem1', checkVal: '6', checkLabel: '6, Blood-related daughters', famMemGen: '6', rotulo: 'Filha' },
                 // 2º Grau Comuns
                 { grupo: 'b_g_son', form: 'hf_segundo_grau_comuns', prefixo: 'g_son', histPrefix: 'b_g_son', countField: 'b_g_sons', checkField: 'fam_mem2', checkVal: '13', checkLabel: '13, Grandsons', famMemGen: '13', rotulo: 'Neto' },
@@ -725,8 +730,9 @@
                     const classe = slotItem.classe;
 
                     const prefix = `${cfg.prefixo}${slotNum}_`;
+                    const histPrefix = `${cfg.histPrefix || cfg.prefixo}${slotNum}_`;
                     const rotuloSlot = `${cfg.rotulo} #${slotNum}`;
-                    processarParenteCampos(p, prefix, cfg.form, rotuloSlot, classe);
+                    processarParenteCampos(p, prefix, cfg.form, rotuloSlot, classe, histPrefix);
                 }
             });
 
