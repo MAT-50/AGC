@@ -1,0 +1,3 @@
+@echo off
+title Abrindo Formulario AGC Analytics...
+start "" "index.html"
